@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1
+
+# ============================================================================
+# Development Dockerfile with dev dependencies and tooling
+# ============================================================================
+FROM python:3.12-bookworm-slim
+
+# Copy uv from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies with dev group included
+# Use cache mount for faster rebuilds
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --all-groups
+
+# Copy application code
+COPY . .
+
+# Activate virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Set Python to run in unbuffered mode
+ENV PYTHONUNBUFFERED=1
+
+# Enable bytecode compilation for faster imports
+ENV UV_COMPILE_BYTECODE=1
+
+# Expose port
+EXPOSE 8123
+
+# Default command for development
+CMD ["python", "-m", "app.main"]
