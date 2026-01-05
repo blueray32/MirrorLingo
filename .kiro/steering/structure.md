@@ -6,8 +6,13 @@ MirrorLingo/
 ├── frontend/                    # Next.js React application
 │   ├── src/
 │   │   ├── components/         # Reusable UI components
+│   │   │   ├── PhraseInput.tsx # Text-based phrase input form
+│   │   │   ├── VoiceRecorder.tsx # Voice recording component
+│   │   │   └── IdiolectAnalysis.tsx # Analysis results display
 │   │   ├── pages/             # Next.js pages (routing)
 │   │   ├── hooks/             # Custom React hooks
+│   │   │   ├── usePhrasesApi.ts # Text phrase API integration
+│   │   │   └── useAudioApi.ts  # Audio upload and processing
 │   │   ├── utils/             # Utility functions
 │   │   └── types/             # TypeScript type definitions
 │   ├── public/                # Static assets
@@ -15,12 +20,14 @@ MirrorLingo/
 ├── backend/                    # AWS Lambda functions
 │   ├── src/
 │   │   ├── handlers/          # Lambda function handlers
+│   │   │   ├── phrase-handler.ts # Text phrase processing
+│   │   │   └── audio-handler.ts  # Voice recording processing
 │   │   ├── services/          # Business logic services
 │   │   ├── models/            # Data models and types
 │   │   └── utils/             # Shared utilities
 │   └── package.json           # Backend dependencies
 ├── infrastructure/             # AWS infrastructure as code
-│   ├── template.yaml          # SAM template
+│   ├── template.yaml          # SAM template (includes S3, Transcribe, DynamoDB)
 │   └── scripts/               # Deployment scripts
 ├── tests/                     # Test files
 │   ├── unit/                  # Unit tests
@@ -45,15 +52,15 @@ MirrorLingo/
 
 ## Module Organization
 **Frontend Modules**:
-- **Components**: Atomic UI components (buttons, inputs, cards)
+- **Components**: Atomic UI components (buttons, inputs, cards, voice recorder, background recorder, Spanish translations)
 - **Pages**: Route-based page components
-- **Hooks**: Custom React hooks for state management and API calls
+- **Hooks**: Custom React hooks for state management and API calls (phrases, audio)
 - **Services**: API client functions and external service integrations
 
 **Backend Modules**:
-- **Handlers**: Lambda entry points for API endpoints
-- **Services**: Core business logic (IdiolectProfile, TranslationVariants, etc.)
-- **Models**: TypeScript interfaces and data validation schemas
+- **Handlers**: Lambda entry points for API endpoints (phrases, audio processing, translations)
+- **Services**: Core business logic (IdiolectProfile, TranslationVariants, AudioProcessor, TranscriptionService, SpanishTranslationService)
+- **Models**: TypeScript interfaces and data validation schemas (including SpeechMetrics)
 - **Utils**: Shared utilities for AWS SDK, validation, etc.
 
 ## Configuration Files

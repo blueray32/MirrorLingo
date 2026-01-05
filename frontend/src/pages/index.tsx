@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { PhraseInput } from '../components/PhraseInput';
+import { VoiceRecorder } from '../components/VoiceRecorder';
+import { BackgroundRecorder } from '../components/BackgroundRecorder';
 import { IdiolectAnalysis } from '../components/IdiolectAnalysis';
+import { SpanishTranslations } from '../components/SpanishTranslations';
 import { usePhrasesApi } from '../hooks/usePhrasesApi';
 
 export default function Home() {
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [showTranslations, setShowTranslations] = useState(false);
+  const [inputMode, setInputMode] = useState<'voice' | 'text' | 'background'>('voice');
+  const [backgroundRecording, setBackgroundRecording] = useState(false);
   const { phrases, profile, loadPhrases, isLoading } = usePhrasesApi();
 
   // Load existing phrases on component mount
@@ -21,8 +27,24 @@ export default function Home() {
     setShowAnalysis(true);
   };
 
+  const handleRecordingComplete = async (audioBlob: Blob, duration: number) => {
+    console.log('Recording completed:', { size: audioBlob.size, duration });
+    // TODO: Send audio to backend for transcription and analysis
+  };
+
+  const handlePhraseDetected = (phrase: string, confidence: number) => {
+    console.log('Background phrase detected:', { phrase, confidence });
+    // TODO: Add to phrases collection and trigger analysis
+  };
+
   const handleStartOver = () => {
     setShowAnalysis(false);
+    setShowTranslations(false);
+    setBackgroundRecording(false);
+  };
+
+  const handleShowTranslations = () => {
+    setShowTranslations(true);
   };
 
   return (
@@ -57,11 +79,76 @@ export default function Home() {
               <div className="hero-text">
                 <h2>Learn Spanish That Matches How You Actually Speak</h2>
                 <p>
-                  Unlike generic language apps, MirrorLingo analyzes your personal speaking style 
-                  and creates Spanish lessons based on phrases you actually use in daily life.
+                  Record yourself speaking naturally or type your daily phrases. 
+                  MirrorLingo analyzes your personal speaking style and creates Spanish lessons 
+                  based on how you actually communicate.
                 </p>
               </div>
-              <PhraseInput onAnalysisComplete={handleAnalysisComplete} />
+
+              <div className="input-mode-selector">
+                <button 
+                  onClick={() => setInputMode('voice')}
+                  className={`mode-btn ${inputMode === 'voice' ? 'active' : ''}`}
+                >
+                  🎤 Record Voice
+                </button>
+                <button 
+                  onClick={() => setInputMode('text')}
+                  className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
+                >
+                  ✏️ Type Phrases
+                </button>
+                <button 
+                  onClick={() => {
+                    setInputMode('background');
+                    setBackgroundRecording(!backgroundRecording);
+                  }}
+                  className={`mode-btn ${inputMode === 'background' ? 'active' : ''}`}
+                >
+                  🔄 Background Mode
+                </button>
+              </div>
+
+              {inputMode === 'voice' ? (
+                <VoiceRecorder 
+                  onRecordingComplete={handleRecordingComplete}
+                  onAnalysisComplete={handleAnalysisComplete}
+                />
+              ) : inputMode === 'background' ? (
+                <div className="background-mode-info">
+                  <h3>Background Learning Mode</h3>
+                  <p>
+                    MirrorLingo will listen in the background and automatically detect 
+                    phrases as you speak naturally throughout your day.
+                  </p>
+                  <div className="background-controls">
+                    <button 
+                      onClick={() => setBackgroundRecording(!backgroundRecording)}
+                      className={`background-toggle ${backgroundRecording ? 'active' : ''}`}
+                    >
+                      {backgroundRecording ? '⏹️ Stop Learning' : '▶️ Start Learning'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <PhraseInput onAnalysisComplete={handleAnalysisComplete} />
+              )}
+            </div>
+          ) : showTranslations ? (
+            <div className="translations-section">
+              <SpanishTranslations 
+                phrases={phrases} 
+                profile={profile!}
+              />
+              
+              <div className="navigation-buttons">
+                <button onClick={() => setShowTranslations(false)} className="back-btn">
+                  ← Back to Analysis
+                </button>
+                <button onClick={handleStartOver} className="start-over-btn">
+                  Analyze New Phrases
+                </button>
+              </div>
             </div>
           ) : (
             <div className="analysis-section">
@@ -78,7 +165,9 @@ export default function Home() {
                     <div className="step-card">
                       <h4>🎯 Spanish Translations</h4>
                       <p>Get personalized Spanish versions of your phrases with literal and natural translations</p>
-                      <button className="step-btn" disabled>Coming Soon</button>
+                      <button onClick={handleShowTranslations} className="step-btn active">
+                        Generate Spanish
+                      </button>
                     </div>
                     <div className="step-card">
                       <h4>🔄 Spaced Practice</h4>
@@ -100,6 +189,12 @@ export default function Home() {
         <footer className="app-footer">
           <p>Built with Kiro CLI for the Dynamous Hackathon 2026</p>
         </footer>
+
+        {/* Background Recorder - always rendered when active */}
+        <BackgroundRecorder 
+          isActive={backgroundRecording}
+          onPhraseDetected={handlePhraseDetected}
+        />
       </main>
 
       <style jsx>{`
@@ -159,6 +254,87 @@ export default function Home() {
         .input-section {
           width: 100%;
           max-width: 800px;
+        }
+
+        .input-mode-selector {
+          display: flex;
+          justify-content: center;
+          gap: 1rem;
+          margin-bottom: 2rem;
+        }
+
+        .mode-btn {
+          padding: 0.75rem 1.5rem;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          border-radius: 0.75rem;
+          cursor: pointer;
+          font-weight: 500;
+          transition: all 0.2s;
+          backdrop-filter: blur(10px);
+        }
+
+        .mode-btn:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+
+        .mode-btn.active {
+          background: rgba(255, 255, 255, 0.9);
+          color: #2d3748;
+          border-color: rgba(255, 255, 255, 0.9);
+        }
+
+        .background-mode-info {
+          background: white;
+          border-radius: 1rem;
+          padding: 2rem;
+          text-align: center;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .background-mode-info h3 {
+          color: #2d3748;
+          margin-bottom: 1rem;
+          font-size: 1.5rem;
+        }
+
+        .background-mode-info p {
+          color: #718096;
+          margin-bottom: 2rem;
+          line-height: 1.6;
+        }
+
+        .background-controls {
+          display: flex;
+          justify-content: center;
+        }
+
+        .background-toggle {
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          font-weight: 600;
+          border: none;
+          border-radius: 0.75rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          min-width: 200px;
+        }
+
+        .background-toggle:not(.active) {
+          background: linear-gradient(135deg, #48bb78, #38a169);
+          color: white;
+        }
+
+        .background-toggle.active {
+          background: linear-gradient(135deg, #e53e3e, #c53030);
+          color: white;
+        }
+
+        .background-toggle:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
         }
 
         .hero-text {
@@ -239,6 +415,52 @@ export default function Home() {
           font-size: 0.875rem;
         }
 
+        .step-btn.active {
+          background: linear-gradient(135deg, #48bb78, #38a169);
+          color: white;
+          cursor: pointer;
+        }
+
+        .step-btn.active:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+        }
+
+        .navigation-buttons {
+          display: flex;
+          justify-content: space-between;
+          padding: 2rem;
+          background: #f8fafc;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .back-btn, .start-over-btn {
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: 0.5rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .back-btn {
+          background: #e2e8f0;
+          color: #4a5568;
+        }
+
+        .back-btn:hover {
+          background: #cbd5e0;
+        }
+
+        .start-over-btn {
+          background: #4299e1;
+          color: white;
+        }
+
+        .start-over-btn:hover {
+          background: #3182ce;
+        }
+
         .app-footer {
           background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
@@ -269,6 +491,15 @@ export default function Home() {
 
           .next-steps-grid {
             grid-template-columns: 1fr;
+          }
+
+          .input-mode-selector {
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .mode-btn {
+            width: 200px;
           }
         }
       `}</style>

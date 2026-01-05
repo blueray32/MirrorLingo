@@ -189,4 +189,9 @@ Respond with just the category name (lowercase).`;
       return IntentCategory.OTHER;
     }
   }
+
+  // Public method for external services to invoke Bedrock
+  static async invokeModelPublic(prompt: string): Promise<string> {
+    return this.invokeModel(prompt);
+  }
 }

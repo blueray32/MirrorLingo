@@ -8,6 +8,19 @@ export interface Phrase {
   createdAt: string;
   updatedAt: string;
   analysis?: IdiolectAnalysis;
+  speechMetrics?: SpeechMetrics;
+}
+
+export interface SpeechMetrics {
+  wordsPerMinute: number;
+  fillerWordCount: number;
+  fillerWordRate: number;
+  averagePauseLength: number;
+  longPauseCount: number;
+  repetitionCount: number;
+  totalDuration: number;
+  wordCount: number;
+  averageConfidence: number;
 }
 
 export interface IdiolectAnalysis {

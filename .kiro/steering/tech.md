@@ -1,26 +1,30 @@
 # Technical Architecture
 
 ## Technology Stack
-**Frontend**: TypeScript + Next.js (React) - Modern web framework with server-side rendering capabilities
+**Frontend**: TypeScript + Next.js (React) + Web Audio API - Modern web framework with voice recording capabilities
 **Backend**: AWS Serverless (API Gateway + Lambda) - Scalable, pay-per-use architecture
-**AI/ML**: Amazon Bedrock - Managed LLM service for translation and personalization
+**AI/ML**: Amazon Bedrock + AWS Transcribe - Managed LLM service and speech-to-text processing
 **Database**: Amazon DynamoDB - NoSQL database for user data and phrase storage
-**Authentication**: AWS Cognito - Managed user authentication and authorization
 **Storage**: Amazon S3 - Audio files and static assets
-**Deployment**: AWS Amplify - Streamlined deployment and hosting
+**Authentication**: AWS Cognito - Managed user authentication and authorization
+**Deployment**: AWS SAM - Infrastructure as Code with CloudFormation
 
 ## Architecture Overview
 **Clean Separation Architecture**:
-- **UI Layer**: Next.js React components handling user interactions
+- **UI Layer**: Next.js React components handling user interactions and voice recording
 - **API Layer**: Lambda functions behind API Gateway for business logic
 - **Data Layer**: DynamoDB for structured data, S3 for media files
-- **AI Layer**: Amazon Bedrock for LLM operations with RAG-style personalization
+- **AI Layer**: Amazon Bedrock for LLM operations + AWS Transcribe for speech processing
 
 **Core Domain Modules**:
-- **IdiolectProfile**: Analyzes and stores user's speaking patterns
+- **IdiolectProfile**: Analyzes and stores user's speaking patterns from text and audio
 - **IntentClustering**: Groups phrases by context (work, family, errands)
 - **TranslationVariants**: Generates literal vs natural Spanish translations
 - **SRScheduler**: Manages spaced repetition scheduling and intervals
+- **AudioProcessor**: Handles voice recording, transcription, and speech analysis
+- **TranscriptionService**: Advanced AWS Transcribe integration with speech metrics
+- **BackgroundRecorder**: Continuous voice activity detection and phrase segmentation
+- **SpanishTranslationService**: AI-powered translation with style preservation
 
 ## Development Environment
 **Required Tools**:
@@ -55,6 +59,18 @@
 **API Contract Testing**: Verify endpoint contracts and data structures
 **Integration Testing**: End-to-end user flows with test data
 **Coverage Target**: 80%+ coverage for core business logic
+
+**Testing Prioritization**:
+- **Essential Tests**: Core business logic, API endpoints, critical user flows
+- **Demo Tests**: Basic functionality validation for hackathon demonstrations
+- **Production Tests**: Comprehensive edge cases, error handling, performance
+
+## Demo Mode Implementation
+**For hackathon and prototype development**:
+- **Enhanced Mock APIs**: Realistic responses without external service dependencies
+- **AI Service Consistency**: Use Bedrock for all AI operations to maintain architectural patterns
+- **Functional Demonstrations**: All features must be user-testable in demo environment
+- **Production Readiness Path**: Clear upgrade path from demo to production implementation
 
 ## Deployment Process
 **AWS-First Deployment**:

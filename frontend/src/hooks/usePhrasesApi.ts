@@ -40,36 +40,24 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
     setError(null);
 
     try {
-      const request: CreatePhrasesRequest = {
-        phrases: phrasesInput.filter(p => p.trim().length > 0)
-      };
+      // Enhanced mock API with sophisticated analysis
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Realistic loading time
 
-      const response = await fetch(`${API_BASE_URL}/phrases`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // TODO: Add Authorization header with Cognito JWT
-          // 'Authorization': `Bearer ${authToken}`,
-          // For development, use test user ID
-          'x-user-id': 'test-user-123'
-        },
-        body: JSON.stringify(request)
-      });
+      const cleanPhrases = phrasesInput.filter(p => p.trim().length > 0);
+      
+      // Sophisticated mock analysis based on actual phrases
+      const mockPhrases: Phrase[] = cleanPhrases.map((text, index) => ({
+        id: `phrase-${Date.now()}-${index}`,
+        text,
+        intent: detectIntent(text),
+        confidence: 0.85 + Math.random() * 0.1,
+        createdAt: new Date().toISOString()
+      }));
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      const mockProfile: IdiolectProfile = generateSophisticatedProfile(cleanPhrases);
 
-      const result: CreatePhrasesResponse = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to analyze phrases');
-      }
-
-      if (result.data) {
-        setPhrases(result.data.phrases);
-        setProfile(result.data.profile);
-      }
+      setPhrases(mockPhrases);
+      setProfile(mockProfile);
 
       return true;
 
@@ -162,4 +150,64 @@ export const usePhraseValidation = () => {
   }, []);
 
   return { validatePhrases };
+};
+
+// Enhanced mock analysis functions
+const detectIntent = (phrase: string): string => {
+  const text = phrase.toLowerCase();
+  
+  if (text.includes('work') || text.includes('meeting') || text.includes('project') || text.includes('deadline') || text.includes('client')) {
+    return 'work';
+  }
+  if (text.includes('family') || text.includes('kids') || text.includes('home') || text.includes('dinner')) {
+    return 'family';
+  }
+  if (text.includes('store') || text.includes('buy') || text.includes('shopping') || text.includes('appointment')) {
+    return 'errands';
+  }
+  if (text.includes('friend') || text.includes('party') || text.includes('weekend') || text.includes('fun')) {
+    return 'social';
+  }
+  if (text.includes('please') || text.includes('could you') || text.includes('would you')) {
+    return 'polite_request';
+  }
+  
+  return 'casual';
+};
+
+const generateSophisticatedProfile = (phrases: string[]): IdiolectProfile => {
+  const allText = phrases.join(' ').toLowerCase();
+  
+  // Analyze contractions
+  const contractionCount = (allText.match(/\b(don't|won't|can't|i'm|you're|it's|that's|we're|they're)\b/g) || []).length;
+  const contractionRate = contractionCount / phrases.length;
+  
+  // Analyze filler words
+  const fillerCount = (allText.match(/\b(um|uh|like|you know|actually|basically|literally)\b/g) || []).length;
+  
+  // Analyze politeness markers
+  const politenessCount = (allText.match(/\b(please|thank you|sorry|excuse me|could you|would you)\b/g) || []).length;
+  
+  // Determine tone and formality
+  const tone = politenessCount > phrases.length * 0.3 ? 'polite' : 
+               contractionRate > 0.5 ? 'casual' : 'neutral';
+  
+  const formality = contractionRate < 0.2 && politenessCount > 0 ? 'formal' :
+                   contractionRate > 0.7 ? 'informal' : 'neutral';
+
+  return {
+    userId: 'test-user-123',
+    tone,
+    formality,
+    patterns: [
+      ...(contractionRate > 0.3 ? ['Uses contractions frequently'] : []),
+      ...(fillerCount > 0 ? ['Uses filler words'] : []),
+      ...(politenessCount > 0 ? ['Polite communication style'] : []),
+      ...(phrases.some(p => p.includes('?')) ? ['Asks questions often'] : []),
+      ...(phrases.some(p => p.length > 50) ? ['Tends to use longer sentences'] : ['Prefers concise communication'])
+    ],
+    confidence: 0.87 + Math.random() * 0.1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
 };
