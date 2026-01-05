@@ -75,8 +75,8 @@ npm run build
 
 ### Installation
 ```bash
-git clone <repo-url>
-cd dynamous-kiro-hackathon
+git clone https://github.com/blueray32/MirrorLingo.git
+cd MirrorLingo
 cd frontend && npm install
 npm run dev
 ```
@@ -205,7 +205,7 @@ cd infrastructure/scripts
 
 *"You don't just learn Spanish – you learn YOUR Spanish."*
 
-**Demo**: http://localhost:3000 | **Code**: GitHub | **Team**: @your-team
+**Demo**: http://localhost:3000 | **Code**: https://github.com/blueray32/MirrorLingo | **Team**: @blueray32
 
 ## 🧪 Testing the Application
 
@@ -473,7 +473,7 @@ This project showcases **spec-driven development** using Kiro CLI:
 6. **Explore Results**: View personalized learning tips and cultural adaptations
 
 ### Full Development Setup (5 minutes)
-1. **Clone**: `git clone <repo-url> && cd dynamous-kiro-hackathon`
+1. **Clone**: `git clone https://github.com/blueray32/MirrorLingo.git && cd MirrorLingo`
 2. **Install**: `cd frontend && npm install`
 3. **Start**: `npm run dev` → Open http://localhost:3000
 4. **Test**: Complete phrase analysis and Spanish translation workflow
