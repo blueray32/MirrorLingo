@@ -1,3 +1,19 @@
+/**
+ * Custom hook for managing phrase analysis and user profile data.
+ * Provides methods for submitting phrases for analysis and retrieving user data.
+ * 
+ * @example
+ * ```tsx
+ * const { phrases, profile, submitPhrases, isLoading } = usePhrasesApi();
+ * 
+ * const handleSubmit = async (userPhrases: string[]) => {
+ *   const success = await submitPhrases(userPhrases);
+ *   if (success) {
+ *     console.log('Analysis complete:', profile);
+ *   }
+ * };
+ * ```
+ */
 import { useState, useCallback } from 'react';
 import { 
   CreatePhrasesRequest, 
@@ -10,11 +26,18 @@ import {
 // API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+/**
+ * Return type for usePhrasesApi hook
+ */
 interface UsePhrasesApiReturn {
   // State
+  /** Loading state for API operations */
   isLoading: boolean;
+  /** Error message if any operation fails */
   error: string | null;
+  /** Array of user's analyzed phrases */
   phrases: Phrase[];
+  /** User's idiolect profile from analysis */
   profile: IdiolectProfile | null;
   
   // Actions

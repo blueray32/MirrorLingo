@@ -256,6 +256,12 @@ See [STRUCTURE.md](STRUCTURE.md) for detailed project organization.
 - **[DEMO_READY.md](DEMO_READY.md)** - Quick demo setup
 - **[STRUCTURE.md](STRUCTURE.md)** - Project organization
 - **[docs/](docs/)** - Detailed documentation
+  - **[API.md](docs/API.md)** - REST API reference
+  - **[COMPONENTS.md](docs/COMPONENTS.md)** - Component documentation
+  - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture & diagrams
+  - [HACKATHON_SUBMISSION.md](docs/HACKATHON_SUBMISSION.md) - Submission details
+  - [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment guide
+  - [FEATURES.md](docs/FEATURES.md) - Feature documentation
 
 ## 🎨 Key Features
 
