@@ -4,6 +4,8 @@
 
 MirrorLingo revolutionizes language learning by analyzing your unique English speaking patterns and creating personalized Spanish lessons that match how you actually communicate. Built with cutting-edge AI and voice processing technology.
 
+> **🚀 Live Repository**: https://github.com/blueray32/MirrorLingo
+
 ## 🎯 What Makes MirrorLingo Different
 
 - **Voice & Text Analysis**: Record yourself or type daily phrases for AI-powered idiolect analysis
