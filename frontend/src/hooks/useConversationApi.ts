@@ -1,182 +1,178 @@
-import { useState, useCallback } from 'react'
-import { 
-  ConversationApiReturn, 
-  ConversationMessage, 
-  ConversationSession,
-  ConversationResponse 
-} from '../types/conversation'
+import { useState, useCallback } from 'react';
+import { ConversationMessage, ConversationTopic, ConversationResponse, TOPIC_STARTERS } from '../types/conversation';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export const useConversationApi = (): ConversationApiReturn => {
-  const [isListening, setIsListening] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [currentSession, setCurrentSession] = useState<ConversationSession | null>(null)
-  const [messages, setMessages] = useState<ConversationMessage[]>([])
-  const [error, setError] = useState<string | null>(null)
+interface UseConversationApiReturn {
+  messages: ConversationMessage[];
+  isLoading: boolean;
+  error: string | null;
+  currentTopic: ConversationTopic;
+  sendMessage: (content: string) => Promise<void>;
+  startConversation: (topic: ConversationTopic) => void;
+  clearConversation: () => void;
+}
 
-  const clearError = useCallback(() => {
-    setError(null)
-  }, [])
+export const useConversationApi = (): UseConversationApiReturn => {
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentTopic, setCurrentTopic] = useState<ConversationTopic>('free_conversation');
 
-  const startConversation = useCallback(async (topic?: string): Promise<boolean> => {
-    setIsProcessing(true)
-    setError(null)
+  const startConversation = useCallback((topic: ConversationTopic) => {
+    setCurrentTopic(topic);
+    setMessages([{
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: TOPIC_STARTERS[topic],
+      timestamp: new Date()
+    }]);
+    setError(null);
+  }, []);
 
-    try {
-      // For demo mode, create mock session and AI greeting
-      const sessionId = `session-${Date.now()}`
-      const session: ConversationSession = {
-        id: sessionId,
-        userId: 'test-user-123',
-        startTime: new Date(),
-        messageCount: 0,
-        topics: topic ? [topic] : ['free_form']
-      }
+  const clearConversation = useCallback(() => {
+    setMessages([]);
+    setError(null);
+  }, []);
 
-      setCurrentSession(session)
+  const sendMessage = useCallback(async (content: string) => {
+    if (!content.trim()) return;
 
-      // Generate AI greeting based on topic
-      const greetingMessage: ConversationMessage = {
-        id: `msg-${Date.now()}`,
-        content: generateGreeting(topic),
-        sender: 'ai',
-        timestamp: new Date()
-      }
+    const userMessage: ConversationMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: content.trim(),
+      timestamp: new Date()
+    };
 
-      setMessages([greetingMessage])
-      return true
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start conversation'
-      setError(errorMessage)
-      return false
-    } finally {
-      setIsProcessing(false)
-    }
-  }, [])
-
-  const sendMessage = useCallback(async (content: string, audioBlob?: Blob): Promise<boolean> => {
-    if (!currentSession) {
-      setError('No active conversation session')
-      return false
-    }
-
-    setIsProcessing(true)
-    setError(null)
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    setError(null);
 
     try {
-      // Add user message
-      const userMessage: ConversationMessage = {
-        id: `msg-${Date.now()}-user`,
-        content,
-        sender: 'user',
-        timestamp: new Date(),
-        audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : undefined
-      }
-
-      setMessages(prev => [...prev, userMessage])
-
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Generate AI response (mock for demo)
-      const aiResponse = generateAIResponse(content, messages)
+      // For demo: use enhanced mock response
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      const aiMessage: ConversationMessage = {
-        id: `msg-${Date.now()}-ai`,
-        content: aiResponse.message,
-        sender: 'ai',
+      const mockResponse = generateMockResponse(content, currentTopic, messages);
+      
+      const assistantMessage: ConversationMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: mockResponse.message,
         timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // If there's a correction, add it as a system note
+      if (mockResponse.correction) {
+        const correctionMessage: ConversationMessage = {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant',
+          content: `💡 *Pequeña corrección*: "${mockResponse.correction.original}" → "${mockResponse.correction.corrected}" (${mockResponse.correction.explanation})`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, correctionMessage]);
       }
 
-      setMessages(prev => [...prev, aiMessage])
-
-      // Update session
-      setCurrentSession(prev => prev ? {
-        ...prev,
-        messageCount: prev.messageCount + 2
-      } : null)
-
-      return true
-
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send message'
-      setError(errorMessage)
-      return false
+      setError(err instanceof Error ? err.message : 'Failed to send message');
     } finally {
-      setIsProcessing(false)
+      setIsLoading(false);
     }
-  }, [currentSession, messages])
-
-  const endConversation = useCallback(async (): Promise<boolean> => {
-    if (!currentSession) return true
-
-    try {
-      setCurrentSession(prev => prev ? {
-        ...prev,
-        endTime: new Date()
-      } : null)
-
-      // Clear conversation state
-      setTimeout(() => {
-        setMessages([])
-        setCurrentSession(null)
-      }, 1000)
-
-      return true
-    } catch (err) {
-      setError('Failed to end conversation')
-      return false
-    }
-  }, [currentSession])
+  }, [currentTopic, messages]);
 
   return {
-    isListening,
-    isProcessing,
-    currentSession,
     messages,
+    isLoading,
     error,
-    startConversation,
+    currentTopic,
     sendMessage,
-    endConversation,
-    clearError
-  }
-}
+    startConversation,
+    clearConversation
+  };
+};
 
-// Helper functions for demo mode
-function generateGreeting(topic?: string): string {
-  const greetings = {
-    daily_life: '¡Hola! ¿Cómo ha sido tu día? Me encantaría escuchar sobre tu rutina diaria.',
-    work: '¡Buenos días! ¿Cómo va todo en el trabajo? ¿Hay algo interesante en lo que estés trabajando?',
-    travel: '¡Qué emocionante hablar de viajes! ¿Has visitado algún lugar interesante recientemente?',
-    food: '¡Me encanta hablar de comida! ¿Cuál es tu plato favorito? ¿Sabes cocinar algo especial?',
-    family: '¡Hola! Me gustaría conocer un poco sobre tu familia. ¿Tienes hermanos o hermanas?',
-    default: '¡Hola! ¿Cómo estás hoy? ¿De qué te gustaría hablar en español?'
-  }
-
-  return greetings[topic as keyof typeof greetings] || greetings.default
-}
-
-function generateAIResponse(userMessage: string, conversationHistory: ConversationMessage[]): ConversationResponse {
-  // Simple response generation for demo
-  const responses = [
-    '¡Qué interesante! Cuéntame más sobre eso.',
-    'Me parece muy bien. ¿Y qué piensas hacer después?',
-    'Entiendo perfectamente. ¿Has tenido experiencias similares antes?',
-    '¡Excelente! Me gusta mucho tu forma de expresarte.',
-    'Esa es una perspectiva muy buena. ¿Podrías explicarme un poco más?'
-  ]
-
-  const randomResponse = responses[Math.floor(Math.random() * responses.length)]
+// Enhanced mock responses for demo
+function generateMockResponse(
+  userMessage: string,
+  topic: ConversationTopic,
+  history: ConversationMessage[]
+): ConversationResponse {
+  const lowerMessage = userMessage.toLowerCase();
   
+  // Detect common mistakes and provide corrections
+  let correction: ConversationResponse['correction'];
+  
+  if (lowerMessage.includes('yo soy bueno')) {
+    correction = {
+      original: 'yo soy bueno',
+      corrected: 'estoy bien',
+      explanation: 'Use "estar" for temporary states like how you feel'
+    };
+  } else if (lowerMessage.includes('mucho bueno')) {
+    correction = {
+      original: 'mucho bueno',
+      corrected: 'muy bueno',
+      explanation: '"Muy" is used with adjectives, "mucho" with nouns'
+    };
+  }
+
+  // Topic-specific responses
+  const responses: Record<ConversationTopic, string[]> = {
+    daily_life: [
+      '¡Qué interesante! ¿Y qué más hiciste hoy?',
+      'Me alegra escuchar eso. ¿Cómo te sientes?',
+      '¡Suena como un día ocupado! ¿Tienes planes para esta noche?'
+    ],
+    work: [
+      '¡Entiendo! El trabajo puede ser muy demandante. ¿Te gusta lo que haces?',
+      'Eso suena importante. ¿Trabajas con un equipo grande?',
+      '¡Qué bien! ¿Cuánto tiempo llevas en ese trabajo?'
+    ],
+    travel: [
+      '¡Qué emocionante! ¿Cuál fue tu lugar favorito?',
+      'Me encantaría visitar ese lugar. ¿Qué me recomiendas ver?',
+      '¡Suena increíble! ¿Probaste la comida local?'
+    ],
+    food: [
+      '¡Mmm, suena delicioso! ¿Sabes cocinar ese plato?',
+      '¡Qué rico! A mí también me gusta eso. ¿Lo comes frecuentemente?',
+      'Interesante elección. ¿Has probado la versión española?'
+    ],
+    hobbies: [
+      '¡Qué hobby tan interesante! ¿Cuánto tiempo llevas haciéndolo?',
+      'Me parece genial. ¿Lo haces solo o con amigos?',
+      '¡Suena divertido! ¿Cómo empezaste con eso?'
+    ],
+    family: [
+      '¡Qué bonito! Las familias son muy importantes. ¿Viven cerca?',
+      'Entiendo. ¿Se reúnen frecuentemente?',
+      '¡Qué bien! ¿Tienen alguna tradición familiar especial?'
+    ],
+    shopping: [
+      '¡Buena idea! ¿Prefieres comprar en tiendas o por internet?',
+      'Entiendo. ¿Hay alguna tienda que te guste especialmente?',
+      '¡Suena como un buen plan! ¿Necesitas ayuda para encontrar algo?'
+    ],
+    weather: [
+      '¡Interesante! Aquí el clima es bastante diferente. ¿Te gusta ese clima?',
+      'Entiendo. ¿Prefieres el calor o el frío?',
+      '¡Qué bien! El buen tiempo siempre mejora el ánimo, ¿verdad?'
+    ],
+    free_conversation: [
+      '¡Qué interesante! Cuéntame más sobre eso.',
+      'Entiendo lo que dices. ¿Y qué piensas hacer al respecto?',
+      '¡Me gusta tu perspectiva! ¿Hay algo más que quieras compartir?'
+    ]
+  };
+
+  const topicResponses = responses[topic] || responses.free_conversation;
+  const randomResponse = topicResponses[Math.floor(Math.random() * topicResponses.length)];
+
   return {
     message: randomResponse,
-    confidence: 0.85 + Math.random() * 0.1,
-    feedback: {
-      pronunciationTips: ['Recuerda pronunciar la "rr" con más fuerza'],
-      vocabularySuggestions: ['Podrías usar "fantástico" en lugar de "muy bueno"'],
-      culturalNotes: ['En España, es común usar "vale" para expresar acuerdo']
-    }
-  }
+    correction,
+    suggestions: history.length > 4 ? ['¿Quieres cambiar de tema?', '¿Tienes alguna pregunta?'] : undefined
+  };
 }

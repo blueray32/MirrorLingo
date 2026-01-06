@@ -1,466 +1,320 @@
-import React, { useState, useRef, useCallback } from 'react'
-import { ConversationPracticeProps, ConversationTopic, getTopicDisplayName } from '../types/conversation'
-import { useConversationApi } from '../hooks/useConversationApi'
+import React, { useState, useRef, useEffect } from 'react';
+import { useConversationApi } from '../hooks/useConversationApi';
+import { ConversationTopic, TOPIC_LABELS } from '../types/conversation';
+
+interface ConversationPracticeProps {
+  userProfile?: {
+    tone: string;
+    formality: string;
+    patterns: string[];
+  };
+  onSessionComplete?: (session?: { messageCount: number }) => void;
+}
 
 export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
   userProfile,
   onSessionComplete
 }) => {
-  const [selectedTopic, setSelectedTopic] = useState<ConversationTopic | null>(null)
-  const [isRecording, setIsRecording] = useState(false)
-  const [currentMessage, setCurrentMessage] = useState('')
+  const [inputText, setInputText] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState<ConversationTopic | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const {
-    isProcessing,
-    currentSession,
     messages,
+    isLoading,
     error,
-    startConversation,
+    currentTopic,
     sendMessage,
-    endConversation,
-    clearError
-  } = useConversationApi()
+    startConversation,
+    clearConversation
+  } = useConversationApi();
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const handleStartConversation = async (topic: ConversationTopic) => {
-    setSelectedTopic(topic)
-    const success = await startConversation(topic)
-    if (success) {
-      scrollToBottom()
+  const handleSend = async () => {
+    if (!inputText.trim() || isLoading) return;
+    await sendMessage(inputText);
+    setInputText('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
-  }
+  };
 
-  const handleSendTextMessage = async () => {
-    if (!currentMessage.trim()) return
-    
-    const success = await sendMessage(currentMessage)
-    if (success) {
-      setCurrentMessage('')
-      scrollToBottom()
-    }
-  }
+  const handleTopicSelect = (topic: ConversationTopic) => {
+    setSelectedTopic(topic);
+    startConversation(topic);
+  };
 
-  const handleStartRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaRecorderRef.current = new MediaRecorder(stream)
-      
-      const chunks: Blob[] = []
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        chunks.push(event.data)
-      }
+  const handleEndSession = () => {
+    const session = { messageCount: messages.length };
+    clearConversation();
+    setSelectedTopic(null);
+    onSessionComplete?.(session);
+  };
 
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' })
-        // For demo, we'll use a placeholder message
-        await sendMessage('Mensaje de voz grabado', audioBlob)
-        stream.getTracks().forEach(track => track.stop())
-        scrollToBottom()
-      }
-
-      mediaRecorderRef.current.start()
-      setIsRecording(true)
-    } catch (error) {
-      console.error('Error starting recording:', error)
-    }
-  }
-
-  const handleStopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-    }
-  }
-
-  const handleEndConversation = async () => {
-    if (currentSession) {
-      await endConversation()
-      onSessionComplete(currentSession)
-    }
-  }
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, 100)
-  }
-
-  const playTextToSpeech = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'es-ES'
-    utterance.rate = 0.8
-    speechSynthesis.speak(utterance)
-  }
-
-  if (!currentSession) {
+  // Topic selection screen
+  if (!selectedTopic) {
     return (
       <div className="conversation-practice">
         <div className="topic-selection">
-          <h2>🗣️ Práctica de Conversación</h2>
-          <p>Elige un tema para comenzar tu conversación en español</p>
+          <h2>🗣️ Spanish Conversation Practice</h2>
+          <p>Choose a topic to start practicing Spanish with your AI tutor</p>
           
           <div className="topics-grid">
-            {Object.values(ConversationTopic).map(topic => (
+            {(Object.keys(TOPIC_LABELS) as ConversationTopic[]).map(topic => (
               <button
                 key={topic}
-                onClick={() => handleStartConversation(topic)}
                 className="topic-btn"
-                disabled={isProcessing}
+                onClick={() => handleTopicSelect(topic)}
               >
-                {getTopicDisplayName(topic)}
+                {TOPIC_LABELS[topic]}
               </button>
             ))}
           </div>
-
-          {error && (
-            <div className="error-message">
-              <p>❌ {error}</p>
-              <button onClick={clearError}>Intentar de nuevo</button>
-            </div>
-          )}
         </div>
 
         <style jsx>{`
           .conversation-practice {
-            max-width: 800px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 2rem;
           }
-
           .topic-selection {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
             text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
           }
-
           .topic-selection h2 {
             color: #2d3748;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
           }
-
           .topic-selection p {
             color: #718096;
             margin-bottom: 2rem;
           }
-
           .topics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 1rem;
-            margin-bottom: 2rem;
           }
-
           .topic-btn {
             padding: 1rem;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
+            border: 2px solid #e2e8f0;
             border-radius: 0.75rem;
+            background: white;
             cursor: pointer;
-            font-weight: 600;
+            font-size: 1rem;
             transition: all 0.2s;
           }
-
           .topic-btn:hover {
+            border-color: #4299e1;
+            background: #ebf8ff;
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-          }
-
-          .topic-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-          }
-
-          .error-message {
-            background: #fed7d7;
-            color: #c53030;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
           }
         `}</style>
       </div>
-    )
+    );
   }
 
+  // Conversation screen
   return (
-    <div className="conversation-practice active">
-      <div className="conversation-header">
-        <h3>Conversación: {selectedTopic ? getTopicDisplayName(selectedTopic) : 'Libre'}</h3>
-        <button onClick={handleEndConversation} className="end-btn">
-          Terminar Conversación
-        </button>
-      </div>
+    <div className="conversation-practice">
+      <div className="conversation-container">
+        <div className="conversation-header">
+          <span className="topic-badge">{TOPIC_LABELS[currentTopic]}</span>
+          <button className="end-btn" onClick={handleEndSession}>End Session</button>
+        </div>
 
-      <div className="messages-container">
-        {messages.map(message => (
-          <div key={message.id} className={`message ${message.sender}`}>
-            <div className="message-content">
-              <p>{message.content}</p>
-              {message.sender === 'ai' && (
-                <button 
-                  onClick={() => playTextToSpeech(message.content)}
-                  className="play-audio-btn"
-                >
-                  🔊
-                </button>
-              )}
-            </div>
-            <div className="message-time">
-              {message.timestamp.toLocaleTimeString()}
-            </div>
-          </div>
-        ))}
-        {isProcessing && (
-          <div className="message ai processing">
-            <div className="message-content">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
+        <div className="messages-container">
+          {messages.map(msg => (
+            <div key={msg.id} className={`message ${msg.role}`}>
+              <div className="message-content">
+                {msg.content}
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          ))}
+          
+          {isLoading && (
+            <div className="message assistant">
+              <div className="message-content typing">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
 
-      <div className="input-area">
-        <div className="text-input">
-          <input
-            type="text"
-            value={currentMessage}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendTextMessage()}
-            placeholder="Escribe tu mensaje en español..."
-            disabled={isProcessing}
+        {error && <div className="error-banner">{error}</div>}
+
+        <div className="input-container">
+          <textarea
+            value={inputText}
+            onChange={e => setInputText(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Escribe en español..."
+            rows={2}
+            disabled={isLoading}
           />
           <button 
-            onClick={handleSendTextMessage}
-            disabled={!currentMessage.trim() || isProcessing}
+            onClick={handleSend} 
+            disabled={!inputText.trim() || isLoading}
             className="send-btn"
           >
-            Enviar
+            Send
           </button>
         </div>
 
-        <div className="voice-input">
-          {!isRecording ? (
-            <button 
-              onClick={handleStartRecording}
-              disabled={isProcessing}
-              className="record-btn"
-            >
-              🎤 Grabar Voz
-            </button>
-          ) : (
-            <button 
-              onClick={handleStopRecording}
-              className="record-btn recording"
-            >
-              ⏹️ Parar Grabación
-            </button>
-          )}
+        <div className="tips">
+          💡 Try responding in Spanish! The AI will gently correct any mistakes.
         </div>
       </div>
 
       <style jsx>{`
-        .conversation-practice.active {
-          max-width: 800px;
+        .conversation-practice {
+          max-width: 600px;
           margin: 0 auto;
-          padding: 2rem;
-          height: 80vh;
-          display: flex;
-          flex-direction: column;
+          padding: 1rem;
         }
-
+        .conversation-container {
+          background: white;
+          border-radius: 1rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+          overflow: hidden;
+        }
         .conversation-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 1rem;
-          background: #f8fafc;
-          border-radius: 0.75rem;
-          margin-bottom: 1rem;
+          background: #f7fafc;
+          border-bottom: 1px solid #e2e8f0;
         }
-
-        .conversation-header h3 {
-          color: #2d3748;
-          margin: 0;
-        }
-
-        .end-btn {
-          background: #e53e3e;
+        .topic-badge {
+          background: #4299e1;
           color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 0.5rem;
-          cursor: pointer;
-        }
-
-        .messages-container {
-          flex: 1;
-          overflow-y: auto;
-          padding: 1rem;
-          background: white;
-          border-radius: 0.75rem;
-          margin-bottom: 1rem;
-          border: 1px solid #e2e8f0;
-        }
-
-        .message {
-          margin-bottom: 1rem;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .message.user {
-          align-items: flex-end;
-        }
-
-        .message.ai {
-          align-items: flex-start;
-        }
-
-        .message-content {
-          max-width: 70%;
-          padding: 1rem;
+          padding: 0.25rem 0.75rem;
           border-radius: 1rem;
-          position: relative;
+          font-size: 0.875rem;
         }
-
-        .message.user .message-content {
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          color: white;
-        }
-
-        .message.ai .message-content {
-          background: #f0f9ff;
-          color: #1e40af;
-          border: 1px solid #bfdbfe;
-        }
-
-        .message-content p {
-          margin: 0;
-          line-height: 1.5;
-        }
-
-        .play-audio-btn {
-          position: absolute;
-          top: 0.5rem;
-          right: 0.5rem;
+        .end-btn {
           background: none;
-          border: none;
+          border: 1px solid #e53e3e;
+          color: #e53e3e;
+          padding: 0.25rem 0.75rem;
+          border-radius: 0.5rem;
           cursor: pointer;
           font-size: 0.875rem;
         }
-
-        .message-time {
-          font-size: 0.75rem;
-          color: #718096;
-          margin-top: 0.25rem;
+        .end-btn:hover {
+          background: #e53e3e;
+          color: white;
         }
-
-        .typing-indicator {
+        .messages-container {
+          height: 400px;
+          overflow-y: auto;
+          padding: 1rem;
+        }
+        .message {
+          margin-bottom: 1rem;
           display: flex;
-          gap: 0.25rem;
         }
-
-        .typing-indicator span {
+        .message.user {
+          justify-content: flex-end;
+        }
+        .message.assistant {
+          justify-content: flex-start;
+        }
+        .message-content {
+          max-width: 80%;
+          padding: 0.75rem 1rem;
+          border-radius: 1rem;
+          line-height: 1.4;
+        }
+        .message.user .message-content {
+          background: #4299e1;
+          color: white;
+          border-bottom-right-radius: 0.25rem;
+        }
+        .message.assistant .message-content {
+          background: #f7fafc;
+          color: #2d3748;
+          border-bottom-left-radius: 0.25rem;
+        }
+        .typing {
+          display: flex;
+          gap: 4px;
+          padding: 1rem;
+        }
+        .typing span {
           width: 8px;
           height: 8px;
-          background: #4299e1;
+          background: #a0aec0;
           border-radius: 50%;
-          animation: typing 1.4s infinite;
+          animation: bounce 1.4s infinite ease-in-out;
         }
-
-        .typing-indicator span:nth-child(2) {
-          animation-delay: 0.2s;
+        .typing span:nth-child(1) { animation-delay: -0.32s; }
+        .typing span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+          0%, 80%, 100% { transform: scale(0); }
+          40% { transform: scale(1); }
         }
-
-        .typing-indicator span:nth-child(3) {
-          animation-delay: 0.4s;
+        .error-banner {
+          background: #fed7d7;
+          color: #c53030;
+          padding: 0.5rem 1rem;
+          text-align: center;
         }
-
-        @keyframes typing {
-          0%, 60%, 100% { opacity: 0.3; }
-          30% { opacity: 1; }
-        }
-
-        .input-area {
-          display: flex;
-          gap: 1rem;
-          align-items: center;
-        }
-
-        .text-input {
-          flex: 1;
+        .input-container {
           display: flex;
           gap: 0.5rem;
+          padding: 1rem;
+          border-top: 1px solid #e2e8f0;
         }
-
-        .text-input input {
+        .input-container textarea {
           flex: 1;
           padding: 0.75rem;
           border: 1px solid #e2e8f0;
           border-radius: 0.5rem;
+          resize: none;
           font-size: 1rem;
         }
-
+        .input-container textarea:focus {
+          outline: none;
+          border-color: #4299e1;
+        }
         .send-btn {
+          padding: 0.75rem 1.5rem;
           background: #48bb78;
           color: white;
           border: none;
-          padding: 0.75rem 1rem;
           border-radius: 0.5rem;
           cursor: pointer;
+          font-weight: 600;
         }
-
         .send-btn:disabled {
-          opacity: 0.5;
+          background: #a0aec0;
           cursor: not-allowed;
         }
-
-        .record-btn {
-          background: #4299e1;
-          color: white;
-          border: none;
+        .send-btn:not(:disabled):hover {
+          background: #38a169;
+        }
+        .tips {
           padding: 0.75rem 1rem;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-
-        .record-btn.recording {
-          background: #e53e3e;
-          animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.7; }
-          100% { opacity: 1; }
-        }
-
-        @media (max-width: 768px) {
-          .conversation-practice.active {
-            padding: 1rem;
-            height: 90vh;
-          }
-
-          .input-area {
-            flex-direction: column;
-          }
-
-          .text-input {
-            width: 100%;
-          }
-
-          .message-content {
-            max-width: 85%;
-          }
+          background: #f0fff4;
+          color: #276749;
+          font-size: 0.875rem;
+          text-align: center;
         }
       `}</style>
     </div>
-  )
-}
+  );
+};

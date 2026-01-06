@@ -1,94 +1,65 @@
-import { IdiolectProfile } from './phrases'
+// Conversation Practice Types
 
 export interface ConversationMessage {
-  id: string
-  content: string
-  sender: 'user' | 'ai'
-  timestamp: Date
-  audioUrl?: string
-  isProcessing?: boolean
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  audioUrl?: string;
 }
 
 export interface ConversationContext {
-  messages: ConversationMessage[]
-  userProfile: IdiolectProfile
-  conversationId: string
-  language: 'spanish' | 'english'
-  topic?: string
+  userId: string;
+  topic: ConversationTopic;
+  userIdiolect?: {
+    tone: string;
+    formality: string;
+    patterns: string[];
+  };
+  messageHistory: ConversationMessage[];
 }
+
+export type ConversationTopic = 
+  | 'daily_life'
+  | 'work'
+  | 'travel'
+  | 'food'
+  | 'hobbies'
+  | 'family'
+  | 'shopping'
+  | 'weather'
+  | 'free_conversation';
 
 export interface ConversationResponse {
-  message: string
-  audioUrl?: string
-  feedback?: ConversationFeedback
-  confidence: number
+  message: string;
+  correction?: {
+    original: string;
+    corrected: string;
+    explanation: string;
+  };
+  suggestions?: string[];
 }
 
-export interface ConversationFeedback {
-  grammarCorrections?: GrammarCorrection[]
-  pronunciationTips?: string[]
-  vocabularySuggestions?: string[]
-  culturalNotes?: string[]
-}
+export const TOPIC_LABELS: Record<ConversationTopic, string> = {
+  daily_life: '🏠 Daily Life',
+  work: '💼 Work',
+  travel: '✈️ Travel',
+  food: '🍽️ Food & Dining',
+  hobbies: '🎨 Hobbies',
+  family: '👨‍👩‍👧 Family',
+  shopping: '🛒 Shopping',
+  weather: '🌤️ Weather',
+  free_conversation: '💬 Free Conversation'
+};
 
-export interface GrammarCorrection {
-  original: string
-  corrected: string
-  explanation: string
-  severity: 'minor' | 'moderate' | 'major'
-}
-
-export interface ConversationSession {
-  id: string
-  userId: string
-  startTime: Date
-  endTime?: Date
-  messageCount: number
-  topics: string[]
-  learningGoals?: string[]
-}
-
-export interface ConversationApiReturn {
-  isListening: boolean
-  isProcessing: boolean
-  currentSession: ConversationSession | null
-  messages: ConversationMessage[]
-  error: string | null
-  
-  startConversation: (topic?: string) => Promise<boolean>
-  sendMessage: (content: string, audioBlob?: Blob) => Promise<boolean>
-  endConversation: () => Promise<boolean>
-  clearError: () => void
-}
-
-export interface ConversationPracticeProps {
-  userProfile: IdiolectProfile
-  onSessionComplete: (session: ConversationSession) => void
-}
-
-export enum ConversationTopic {
-  DAILY_LIFE = 'daily_life',
-  WORK = 'work',
-  TRAVEL = 'travel',
-  FOOD = 'food',
-  FAMILY = 'family',
-  HOBBIES = 'hobbies',
-  SHOPPING = 'shopping',
-  WEATHER = 'weather',
-  FREE_FORM = 'free_form'
-}
-
-export const getTopicDisplayName = (topic: ConversationTopic): string => {
-  const names = {
-    [ConversationTopic.DAILY_LIFE]: 'Daily Life',
-    [ConversationTopic.WORK]: 'Work & Business',
-    [ConversationTopic.TRAVEL]: 'Travel & Tourism',
-    [ConversationTopic.FOOD]: 'Food & Dining',
-    [ConversationTopic.FAMILY]: 'Family & Friends',
-    [ConversationTopic.HOBBIES]: 'Hobbies & Interests',
-    [ConversationTopic.SHOPPING]: 'Shopping & Services',
-    [ConversationTopic.WEATHER]: 'Weather & Small Talk',
-    [ConversationTopic.FREE_FORM]: 'Open Conversation'
-  }
-  return names[topic] || 'Unknown Topic'
-}
+export const TOPIC_STARTERS: Record<ConversationTopic, string> = {
+  daily_life: '¡Hola! ¿Cómo ha sido tu día hoy?',
+  work: '¡Hola! ¿Cómo va el trabajo últimamente?',
+  travel: '¡Hola! ¿Has viajado a algún lugar interesante recientemente?',
+  food: '¡Hola! ¿Qué te gusta comer? ¿Tienes un restaurante favorito?',
+  hobbies: '¡Hola! ¿Qué te gusta hacer en tu tiempo libre?',
+  family: '¡Hola! Cuéntame sobre tu familia.',
+  shopping: '¡Hola! ¿Necesitas comprar algo hoy?',
+  weather: '¡Hola! ¿Qué tiempo hace donde estás?',
+  free_conversation: '¡Hola! ¿De qué te gustaría hablar hoy?'
+};

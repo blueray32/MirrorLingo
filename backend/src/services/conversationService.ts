@@ -1,162 +1,130 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime'
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-1'
-})
+});
 
-const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0'
+const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0';
 
 export interface ConversationContext {
-  messages: Array<{ role: 'user' | 'assistant', content: string }>
-  userProfile: {
-    tone: string
-    formality: string
-    patterns: string[]
-  }
-  topic?: string
-  language: 'spanish' | 'english'
+  userId: string;
+  topic: string;
+  userIdiolect?: {
+    tone: string;
+    formality: string;
+    patterns: string[];
+  };
+  messageHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 export interface ConversationResponse {
-  message: string
-  feedback?: {
-    grammarCorrections?: Array<{
-      original: string
-      corrected: string
-      explanation: string
-      severity: 'minor' | 'moderate' | 'major'
-    }>
-    pronunciationTips?: string[]
-    vocabularySuggestions?: string[]
-    culturalNotes?: string[]
-  }
-  confidence: number
+  message: string;
+  correction?: {
+    original: string;
+    corrected: string;
+    explanation: string;
+  };
+  suggestions?: string[];
 }
 
 export class ConversationService {
-  
   static async generateResponse(
-    userMessage: string, 
+    userMessage: string,
     context: ConversationContext
   ): Promise<ConversationResponse> {
-    
-    const prompt = this.buildConversationPrompt(userMessage, context)
-    
+    const systemPrompt = this.buildSystemPrompt(context);
+    const messages = this.buildMessages(userMessage, context);
+
     try {
-      const response = await this.invokeModel(prompt)
-      return this.parseConversationResponse(response)
+      const response = await this.invokeModel(systemPrompt, messages);
+      return this.parseResponse(response);
     } catch (error) {
-      console.error('Error generating conversation response:', error)
-      throw new Error('Failed to generate AI response')
+      console.error('Conversation error:', error);
+      return {
+        message: 'Lo siento, no pude procesar tu mensaje. ¿Puedes repetirlo?',
+        suggestions: ['Intenta de nuevo', 'Cambia de tema']
+      };
     }
   }
 
-  private static buildConversationPrompt(
-    userMessage: string, 
-    context: ConversationContext
-  ): string {
-    const { userProfile, topic, messages } = context
-    
-    const conversationHistory = messages
-      .slice(-6) // Keep last 6 messages for context
-      .map(msg => `${msg.role === 'user' ? 'Usuario' : 'Asistente'}: ${msg.content}`)
-      .join('\n')
+  private static buildSystemPrompt(context: ConversationContext): string {
+    const idiolectInfo = context.userIdiolect
+      ? `The user's speaking style is ${context.userIdiolect.tone} and ${context.userIdiolect.formality}. 
+         They tend to use: ${context.userIdiolect.patterns.join(', ')}.
+         Match their style in your responses.`
+      : '';
 
-    return `Eres un tutor de español conversacional que se adapta al estilo personal del usuario.
+    return `You are a friendly Spanish conversation tutor for MirrorLingo. 
+Your role is to have natural conversations in Spanish while helping the user practice.
 
-PERFIL DEL USUARIO:
-- Tono: ${userProfile.tone}
-- Formalidad: ${userProfile.formality}
-- Patrones de habla: ${userProfile.patterns.join(', ')}
+RULES:
+1. Respond ONLY in Spanish (unless explaining a grammar point)
+2. Keep responses conversational and natural (2-3 sentences max)
+3. If the user makes a grammar mistake, gently correct it
+4. Adapt your formality to match the user's style
+5. Stay on topic: ${context.topic}
+6. Be encouraging and supportive
 
-TEMA DE CONVERSACIÓN: ${topic || 'conversación libre'}
+${idiolectInfo}
 
-HISTORIAL RECIENTE:
-${conversationHistory}
-
-NUEVO MENSAJE DEL USUARIO: ${userMessage}
-
-Responde en español de manera natural y conversacional. Adapta tu respuesta al estilo del usuario (${userProfile.tone}, ${userProfile.formality}). 
-
-Proporciona tu respuesta en este formato JSON:
+RESPONSE FORMAT (JSON):
 {
-  "message": "Tu respuesta conversacional en español",
-  "feedback": {
-    "grammarCorrections": [
-      {
-        "original": "texto con error",
-        "corrected": "texto corregido", 
-        "explanation": "explicación breve",
-        "severity": "minor|moderate|major"
-      }
-    ],
-    "pronunciationTips": ["consejo de pronunciación"],
-    "vocabularySuggestions": ["sugerencia de vocabulario"],
-    "culturalNotes": ["nota cultural relevante"]
-  },
-  "confidence": 0.95
-}
-
-Mantén la conversación natural y enfócate en ayudar al usuario a practicar español de manera cómoda.`
+  "message": "Your Spanish response here",
+  "correction": { "original": "user's mistake", "corrected": "correct form", "explanation": "brief explanation" } or null,
+  "suggestions": ["optional follow-up phrase 1", "optional phrase 2"] or null
+}`;
   }
 
-  private static async invokeModel(prompt: string): Promise<string> {
-    const body = JSON.stringify({
-      anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
-    })
+  private static buildMessages(
+    userMessage: string,
+    context: ConversationContext
+  ): Array<{ role: string; content: string }> {
+    const messages = context.messageHistory.slice(-6).map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+    messages.push({ role: 'user', content: userMessage });
+    return messages;
+  }
+
+  private static async invokeModel(
+    systemPrompt: string,
+    messages: Array<{ role: string; content: string }>
+  ): Promise<string> {
+    const payload = {
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: 500,
+      system: systemPrompt,
+      messages
+    };
 
     const command = new InvokeModelCommand({
       modelId: MODEL_ID,
-      body,
       contentType: 'application/json',
-      accept: 'application/json'
-    })
+      body: JSON.stringify(payload)
+    });
 
-    const response = await bedrockClient.send(command)
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body))
-    
-    return responseBody.content[0].text
+    const response = await bedrockClient.send(command);
+    if (!response.body) throw new Error('No response body');
+
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    return responseBody.content?.[0]?.text || '';
   }
 
-  private static parseConversationResponse(response: string): ConversationResponse {
+  private static parseResponse(response: string): ConversationResponse {
     try {
-      // Try to parse JSON response
-      const parsed = JSON.parse(response)
-      return {
-        message: parsed.message || response,
-        feedback: parsed.feedback,
-        confidence: parsed.confidence || 0.8
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          message: parsed.message || response,
+          correction: parsed.correction || undefined,
+          suggestions: parsed.suggestions || undefined
+        };
       }
-    } catch (error) {
-      // Fallback to plain text response
-      return {
-        message: response,
-        confidence: 0.7
-      }
+    } catch {
+      // If JSON parsing fails, use raw response
     }
-  }
-
-  static async startConversation(
-    topic: string,
-    userProfile: any
-  ): Promise<ConversationResponse> {
-    const greetingPrompt = `Inicia una conversación en español sobre ${topic}. 
-    Adapta tu saludo al estilo ${userProfile.tone} y ${userProfile.formality} del usuario.
-    Haz una pregunta abierta para comenzar la conversación.`
-
-    try {
-      const response = await this.invokeModel(greetingPrompt)
-      return this.parseConversationResponse(response)
-    } catch (error) {
-      console.error('Error starting conversation:', error)
-      throw new Error('Failed to start conversation')
-    }
+    return { message: response };
   }
 }

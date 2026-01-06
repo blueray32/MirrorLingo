@@ -5,11 +5,13 @@ import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BackgroundRecorder } from '../components/BackgroundRecorder';
 import { IdiolectAnalysis } from '../components/IdiolectAnalysis';
 import { SpanishTranslations } from '../components/SpanishTranslations';
+import { ConversationPractice } from '../components/ConversationPractice';
 import { usePhrasesApi } from '../hooks/usePhrasesApi';
 
 export default function Home() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showTranslations, setShowTranslations] = useState(false);
+  const [showConversation, setShowConversation] = useState(false);
   const [inputMode, setInputMode] = useState<'voice' | 'text' | 'background'>('voice');
   const [backgroundRecording, setBackgroundRecording] = useState(false);
   const { phrases, profile, loadPhrases, isLoading } = usePhrasesApi();
@@ -40,7 +42,12 @@ export default function Home() {
   const handleStartOver = () => {
     setShowAnalysis(false);
     setShowTranslations(false);
+    setShowConversation(false);
     setBackgroundRecording(false);
+  };
+
+  const handleShowConversation = () => {
+    setShowConversation(true);
   };
 
   const handleShowTranslations = () => {
@@ -109,6 +116,13 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* Quick access to conversation practice */}
+              <div className="quick-conversation">
+                <button onClick={handleShowConversation} className="conversation-btn">
+                  🗣️ Try AI Conversation Practice
+                </button>
+              </div>
+
               {inputMode === 'voice' ? (
                 <VoiceRecorder 
                   onRecordingComplete={handleRecordingComplete}
@@ -133,6 +147,22 @@ export default function Home() {
               ) : (
                 <PhraseInput onAnalysisComplete={handleAnalysisComplete} />
               )}
+            </div>
+          ) : showConversation ? (
+            <div className="conversation-section">
+              <ConversationPractice 
+                userProfile={profile ? {
+                  tone: profile.tone,
+                  formality: profile.formality,
+                  patterns: profile.patterns
+                } : undefined}
+                onSessionComplete={() => setShowConversation(false)}
+              />
+              <div className="navigation-buttons">
+                <button onClick={() => setShowConversation(false)} className="back-btn">
+                  ← Back
+                </button>
+              </div>
             </div>
           ) : showTranslations ? (
             <div className="translations-section">
@@ -167,6 +197,13 @@ export default function Home() {
                       <p>Get personalized Spanish versions of your phrases with literal and natural translations</p>
                       <button onClick={handleShowTranslations} className="step-btn active">
                         Generate Spanish
+                      </button>
+                    </div>
+                    <div className="step-card">
+                      <h4>🗣️ AI Conversation</h4>
+                      <p>Practice real Spanish conversations with an AI tutor that adapts to your style</p>
+                      <button onClick={handleShowConversation} className="step-btn active">
+                        Start Conversation
                       </button>
                     </div>
                     <div className="step-card">
@@ -335,6 +372,33 @@ export default function Home() {
         .background-toggle:hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-conversation {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+
+        .conversation-btn {
+          padding: 0.75rem 1.5rem;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          color: white;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          border-radius: 0.75rem;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 1rem;
+          transition: all 0.2s;
+        }
+
+        .conversation-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .conversation-section {
+          width: 100%;
+          max-width: 700px;
         }
 
         .hero-text {
