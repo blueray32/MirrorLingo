@@ -1,0 +1,6 @@
+module Pods_MirrorLingoMobile {
+  umbrella header "Pods-MirrorLingoMobile-umbrella.h"
+
+  export *
+  module * { export * }
+}

@@ -16,7 +16,8 @@ MirrorLingo revolutionizes language learning by analyzing your unique English sp
 
 ## 🚀 Live Demo
 
-**Try it now**: `cd frontend && npm run dev` → http://localhost:3000
+**Web App**: `cd frontend && npm run dev` → http://localhost:3000
+**Mobile App**: `cd MirrorLingoMobile && npm install && npx react-native run-ios`
 
 ### 2-Minute Judge Demo
 1. **Enter phrases**: "Could you take a look at this?", "No worries, take your time"
@@ -31,16 +32,18 @@ MirrorLingo revolutionizes language learning by analyzing your unique English sp
 ## 🏗️ Technical Excellence
 
 ### Architecture
-- **Frontend**: Next.js + TypeScript + PWA
+- **Frontend**: Next.js + TypeScript + PWA (Web) | React Native + TypeScript (Mobile)
 - **Backend**: AWS Lambda + API Gateway + TypeScript
 - **AI/ML**: Amazon Bedrock (Claude) + AWS Transcribe
 - **Database**: DynamoDB with user isolation
 - **Storage**: S3 for audio processing
+- **Mobile**: Native audio recording + push notifications + offline sync
 - **Testing**: Jest + React Testing Library + Property-based tests
 
 ### Key Innovations
 - **Idiolect Preservation**: AI maintains user's personality in Spanish translations
 - **🆕 AI Conversation Practice**: Real-time Spanish conversations with personalized AI tutor
+- **🆕 Native Mobile App**: React Native with superior audio recording and offline sync
 - **Speech Metrics**: WPM, filler words, pauses, confidence analysis
 - **Adaptive Learning**: SM-2 spaced repetition with performance tracking
 - **Real-time Voice**: Background recording with phrase segmentation
@@ -79,17 +82,25 @@ npm run build
 ```bash
 git clone https://github.com/blueray32/MirrorLingo.git
 cd MirrorLingo
+
+# Web App
 cd frontend && npm install
 npm run dev
+
+# Mobile App
+cd ../MirrorLingoMobile && npm install
+npx react-native run-ios  # or run-android
 ```
 
 ### Demo Flow
-1. **Choose input method**: Voice, text, or background recording
-2. **Add phrases**: Your actual daily communication
-3. **AI analysis**: Watch real-time pattern detection
-4. **Spanish generation**: See personalized translations
-5. **🆕 AI Conversation**: Practice real conversations with personalized AI tutor
-6. **Practice session**: Use spaced repetition system
+1. **Choose platform**: Web app or mobile app
+2. **Choose input method**: Voice, text, or background recording
+3. **Add phrases**: Your actual daily communication
+4. **AI analysis**: Watch real-time pattern detection
+5. **Spanish generation**: See personalized translations
+6. **🆕 AI Conversation**: Practice real conversations with personalized AI tutor
+7. **Practice session**: Use spaced repetition system
+8. **🆕 Mobile features**: Push notifications, offline sync, native audio
 
 ## 🏆 Hackathon Criteria Alignment
 
@@ -253,6 +264,18 @@ curl https://your-api-url/phrases \
 
 See [STRUCTURE.md](STRUCTURE.md) for detailed project organization.
 
+**Updated Structure**:
+```
+MirrorLingo/
+├── frontend/                    # Next.js web application
+├── MirrorLingoMobile/          # React Native mobile app
+├── backend/                    # AWS Lambda functions
+├── infrastructure/             # AWS infrastructure as code
+├── tests/                      # Test files
+├── .kiro/                      # Kiro CLI configuration
+└── docs/                       # Documentation
+```
+
 ## 📚 Documentation
 
 - **[DEMO_READY.md](DEMO_READY.md)** - Quick demo setup
@@ -338,6 +361,14 @@ See [STRUCTURE.md](STRUCTURE.md) for detailed project organization.
 - **Voice Integration**: Record messages and hear AI responses with text-to-speech
 - **Contextual Learning**: Maintains conversation context and provides gentle corrections
 - **Mobile Optimized**: Responsive chat interface for mobile and desktop
+
+### ✅ Native Mobile Application
+- **React Native Architecture**: Cross-platform iOS and Android support
+- **Superior Audio Recording**: Native APIs with better quality than web browsers
+- **Push Notifications**: Spaced repetition reminders with personalized phrases
+- **Offline-First Design**: Complete functionality without internet connection
+- **Background Sync**: Automatic data synchronization when connection restored
+- **Touch-Optimized UI**: Mobile-first design with gesture support and haptic feedback
 
 ### ✅ Pronunciation Feedback System
 - **Voice Recording**: Real-time pronunciation capture and analysis
@@ -467,17 +498,19 @@ This project showcases **spec-driven development** using Kiro CLI:
 ## 🚀 Getting Started for Judges
 
 ### Quick Demo (No Setup Required)
-1. **Visit**: http://localhost:3000 (after running `cd frontend && npm run dev`)
-2. **Enter Sample Phrases**: Use the provided examples or your own daily phrases
-3. **Watch AI Analysis**: See real-time idiolect pattern detection (2 seconds)
-4. **Generate Spanish**: Select phrases and see dual translations with style matching
-5. **Try Practice Session**: Experience spaced repetition with SM-2 algorithm
-6. **Explore Results**: View personalized learning tips and cultural adaptations
+1. **Web App**: `cd frontend && npm run dev` → http://localhost:3000
+2. **Mobile App**: `cd MirrorLingoMobile && npm install && npx react-native run-ios`
+3. **Enter Sample Phrases**: Use provided examples or your own daily phrases
+4. **Watch AI Analysis**: See real-time idiolect pattern detection (2 seconds)
+5. **Generate Spanish**: Select phrases and see dual translations with style matching
+6. **Try Practice Session**: Experience spaced repetition with SM-2 algorithm
+7. **Mobile Features**: Test native audio recording and push notifications
+8. **Explore Results**: View personalized learning tips and cultural adaptations
 
 ### Full Development Setup (5 minutes)
 1. **Clone**: `git clone https://github.com/blueray32/MirrorLingo.git && cd MirrorLingo`
-2. **Install**: `cd frontend && npm install`
-3. **Start**: `npm run dev` → Open http://localhost:3000
+2. **Web App**: `cd frontend && npm install && npm run dev` → http://localhost:3000
+3. **Mobile App**: `cd ../MirrorLingoMobile && npm install && npx react-native run-ios`
 4. **Test**: Complete phrase analysis and Spanish translation workflow
 5. **Practice**: Try the spaced repetition system with your phrases
 

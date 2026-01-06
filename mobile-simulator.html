@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MirrorLingo Mobile Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f0;
+        }
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 40px;
+            padding: 10px;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+        .status-bar {
+            height: 44px;
+            background: #4CAF50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .content {
+            padding: 20px;
+            height: calc(100% - 44px);
+            overflow-y: auto;
+        }
+        .home-screen {
+            text-align: center;
+        }
+        .app-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .app-subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 0;
+            width: 100%;
+            cursor: pointer;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 20px auto;
+            display: block;
+            cursor: pointer;
+        }
+        .record-button.recording {
+            background: #ff4444;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .features {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .feature {
+            margin: 8px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .hidden {
+            display: none;
+        }
+        .transcript {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-style: italic;
+        }
+        .translation {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .spanish {
+            font-size: 18px;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .explanation {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="screen">
+            <div class="status-bar">MirrorLingo</div>
+            
+            <!-- Home Screen -->
+            <div id="home" class="content home-screen">
+                <div class="app-title">MirrorLingo</div>
+                <div class="app-subtitle">Your Personal Spanish Learning Coach</div>
+                
+                <p>Learn Spanish that matches how you actually speak. Record your daily phrases and get personalized Spanish lessons.</p>
+                
+                <button class="button" onclick="showScreen('record')">Start Recording</button>
+                <button class="button" onclick="showScreen('practice')">Practice Spanish</button>
+                <button class="button" onclick="showScreen('progress')">View Progress</button>
+                
+                <div class="features">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Key Features:</div>
+                    <div class="feature">🎤 Voice & Text Analysis</div>
+                    <div class="feature">🧠 AI-Powered Personalization</div>
+                    <div class="feature">🇪🇸 Dual Spanish Translations</div>
+                    <div class="feature">📚 Spaced Repetition Learning</div>
+                    <div class="feature">📱 Native Mobile Experience</div>
+                </div>
+            </div>
+            
+            <!-- Record Screen -->
+            <div id="record" class="content hidden">
+                <h2>Record Your Phrases</h2>
+                <p>Speak naturally about your daily activities. Say phrases you actually use in conversations.</p>
+                
+                <button id="recordBtn" class="record-button" onclick="toggleRecording()">
+                    Start Recording
+                </button>
+                
+                <div id="recordingStatus" style="text-align: center; color: #666;"></div>
+                
+                <div id="transcript" class="transcript hidden">
+                    <strong>Transcript:</strong><br>
+                    <span id="transcriptText"></span>
+                </div>
+                
+                <div id="translation" class="translation hidden">
+                    <div class="spanish" id="spanishText"></div>
+                    <div class="explanation" id="explanationText"></div>
+                </div>
+                
+                <button class="button" onclick="showScreen('home')" style="margin-top: 20px;">Back to Home</button>
+            </div>
+            
+            <!-- Practice Screen -->
+            <div id="practice" class="content hidden">
+                <h2>Practice Spanish</h2>
+                <p>Review your personalized phrases with spaced repetition.</p>
+                
+                <div class="features">
+                    <div style="font-weight: bold; margin-bottom: 10px;">Sample Practice Session:</div>
+                    <div style="font-size: 18px; margin: 15px 0;">"Could you take a look at this?"</div>
+                    <div style="color: #4CAF50; font-weight: bold; margin: 10px 0;">¿Le echas un ojo a esto?</div>
+                    <div style="font-size: 14px; color: #666;">Natural Spanish that preserves your casual, friendly tone.</div>
+                </div>
+                
+                <button class="button" onclick="showScreen('home')" style="margin-top: 20px;">Back to Home</button>
+            </div>
+            
+            <!-- Progress Screen -->
+            <div id="progress" class="content hidden">
+                <h2>Your Progress</h2>
+                
+                <div class="features">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">12</div>
+                            <div style="font-size: 12px; color: #666;">Phrases</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">8</div>
+                            <div style="font-size: 12px; color: #666;">Mastered</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">92%</div>
+                            <div style="font-size: 12px; color: #666;">Style Match</div>
+                        </div>
+                    </div>
+                    
+                    <div style="font-weight: bold; margin-bottom: 10px;">Recent Achievements:</div>
+                    <div class="feature">🎯 First Week Complete</div>
+                    <div class="feature">🗣️ Voice Master - 10+ phrases recorded</div>
+                    <div class="feature">📱 Mobile Learning Streak</div>
+                </div>
+                
+                <button class="button" onclick="showScreen('home')" style="margin-top: 20px;">Back to Home</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRecording = false;
+        let recordingTimeout;
+
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.content').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            
+            // Show selected screen
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function toggleRecording() {
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordingStatus');
+            
+            if (!isRecording) {
+                // Start recording
+                isRecording = true;
+                btn.textContent = 'Stop Recording';
+                btn.classList.add('recording');
+                status.textContent = 'Recording... Speak naturally';
+                
+                // Simulate recording for 3 seconds
+                recordingTimeout = setTimeout(() => {
+                    stopRecording();
+                }, 3000);
+            } else {
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordingStatus');
+            const transcript = document.getElementById('transcript');
+            const translation = document.getElementById('translation');
+            
+            btn.textContent = 'Start Recording';
+            btn.classList.remove('recording');
+            status.textContent = 'Processing...';
+            
+            clearTimeout(recordingTimeout);
+            
+            // Simulate processing
+            setTimeout(() => {
+                status.textContent = 'Complete!';
+                
+                // Show mock results
+                document.getElementById('transcriptText').textContent = 'Could you take a look at this?';
+                document.getElementById('spanishText').textContent = '¿Le echas un ojo a esto?';
+                document.getElementById('explanationText').textContent = 'This natural Spanish translation preserves your casual, friendly tone while being culturally appropriate.';
+                
+                transcript.classList.remove('hidden');
+                translation.classList.remove('hidden');
+            }, 1500);
+        }
+
+        // Simulate mobile app behavior
+        console.log('MirrorLingo Mobile Simulator loaded');
+        console.log('Features: Voice recording, Spanish translation, Spaced repetition');
+    </script>
+</body>
+</html>

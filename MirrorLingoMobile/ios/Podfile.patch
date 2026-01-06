@@ -1,0 +1,15 @@
+# Add this at the top of your Podfile, after the platform line:
+
+pre_install do |installer|
+  # Fix boost download URL
+  boost_spec_path = '../node_modules/react-native/third-party-podspecs/boost.podspec'
+  if File.exist?(boost_spec_path)
+    content = File.read(boost_spec_path)
+    # Use archives.boost.io which is more reliable
+    content.gsub!(
+      "https://boostorg.jfrog.io/artifactory/main/release/1.83.0/source/boost_1_83_0.tar.bz2",
+      "https://archives.boost.io/release/1.83.0/source/boost_1_83_0.tar.bz2"
+    )
+    File.write(boost_spec_path, content)
+  end
+end
