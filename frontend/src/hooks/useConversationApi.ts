@@ -1,7 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ConversationMessage, ConversationTopic, ConversationResponse, TOPIC_STARTERS } from '../types/conversation';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface UseConversationApiReturn {
   messages: ConversationMessage[];
@@ -18,20 +16,27 @@ export const useConversationApi = (): UseConversationApiReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentTopic, setCurrentTopic] = useState<ConversationTopic>('free_conversation');
+  const messagesRef = useRef<ConversationMessage[]>([]);
+  const idCounter = useRef(0);
+
+  const generateId = () => `msg-${Date.now()}-${++idCounter.current}`;
 
   const startConversation = useCallback((topic: ConversationTopic) => {
     setCurrentTopic(topic);
-    setMessages([{
-      id: Date.now().toString(),
-      role: 'assistant',
+    const initialMessages = [{
+      id: generateId(),
+      role: 'assistant' as const,
       content: TOPIC_STARTERS[topic],
       timestamp: new Date()
-    }]);
+    }];
+    setMessages(initialMessages);
+    messagesRef.current = initialMessages;
     setError(null);
   }, []);
 
   const clearConversation = useCallback(() => {
     setMessages([]);
+    messagesRef.current = [];
     setError(null);
   }, []);
 
@@ -39,40 +44,50 @@ export const useConversationApi = (): UseConversationApiReturn => {
     if (!content.trim()) return;
 
     const userMessage: ConversationMessage = {
-      id: Date.now().toString(),
+      id: generateId(),
       role: 'user',
       content: content.trim(),
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      messagesRef.current = updated;
+      return updated;
+    });
     setIsLoading(true);
     setError(null);
 
     try {
-      // For demo: use enhanced mock response
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const mockResponse = generateMockResponse(content, currentTopic, messages);
+      const mockResponse = generateMockResponse(content, currentTopic, messagesRef.current);
       
       const assistantMessage: ConversationMessage = {
-        id: (Date.now() + 1).toString(),
+        id: generateId(),
         role: 'assistant',
         content: mockResponse.message,
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => {
+        const updated = [...prev, assistantMessage];
+        messagesRef.current = updated;
+        return updated;
+      });
 
-      // If there's a correction, add it as a system note
       if (mockResponse.correction) {
         const correctionMessage: ConversationMessage = {
-          id: (Date.now() + 2).toString(),
+          id: generateId(),
           role: 'assistant',
           content: `💡 *Pequeña corrección*: "${mockResponse.correction.original}" → "${mockResponse.correction.corrected}" (${mockResponse.correction.explanation})`,
           timestamp: new Date()
         };
-        setMessages(prev => [...prev, correctionMessage]);
+        setMessages(prev => {
+          const updated = [...prev, correctionMessage];
+          messagesRef.current = updated;
+          return updated;
+        });
       }
 
     } catch (err) {
@@ -80,7 +95,7 @@ export const useConversationApi = (): UseConversationApiReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentTopic, messages]);
+  }, [currentTopic]);
 
   return {
     messages,

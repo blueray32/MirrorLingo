@@ -39,7 +39,7 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
     setInputText('');
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -159,7 +159,7 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
           <textarea
             value={inputText}
             onChange={e => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Escribe en español..."
             rows={2}
             disabled={isLoading}

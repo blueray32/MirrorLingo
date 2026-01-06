@@ -27,6 +27,8 @@ export interface ConversationResponse {
   suggestions?: string[];
 }
 
+const MAX_HISTORY_MESSAGES = parseInt(process.env.BEDROCK_MAX_HISTORY || '10', 10);
+
 export class ConversationService {
   static async generateResponse(
     userMessage: string,
@@ -79,7 +81,7 @@ RESPONSE FORMAT (JSON):
     userMessage: string,
     context: ConversationContext
   ): Array<{ role: string; content: string }> {
-    const messages = context.messageHistory.slice(-6).map(m => ({
+    const messages = context.messageHistory.slice(-MAX_HISTORY_MESSAGES).map(m => ({
       role: m.role,
       content: m.content
     }));

@@ -19,7 +19,14 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return createResponse(400, { error: 'Request body required' });
     }
 
-    const { message, topic, messageHistory, userIdiolect } = JSON.parse(event.body);
+    let body;
+    try {
+      body = JSON.parse(event.body);
+    } catch {
+      return createResponse(400, { error: 'Invalid JSON' });
+    }
+
+    const { message, topic, messageHistory, userIdiolect } = body;
 
     if (!message) {
       return createResponse(400, { error: 'Message is required' });
