@@ -1,18 +1,88 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { offlineService, OfflinePhraseData } from './offline';
 
-// Types from the existing web app
+// Types matching backend models
+export interface Phrase {
+  userId: string;
+  phraseId: string;
+  englishText: string;
+  intent: IntentCategory;
+  createdAt: string;
+  updatedAt: string;
+  analysis?: IdiolectAnalysis;
+  speechMetrics?: SpeechMetrics;
+}
+
 export interface IdiolectProfile {
-  tone: 'formal' | 'casual' | 'mixed';
-  formality: number;
-  patterns: string[];
-  fillerWords: string[];
-  contractions: boolean;
-  intents: Array<{
-    category: string;
-    phrases: string[];
-    confidence: number;
-  }>;
+  userId: string;
+  overallTone: ToneLevel;
+  overallFormality: FormalityLevel;
+  commonPatterns: LanguagePattern[];
+  preferredIntents: IntentCategory[];
+  analysisCount: number;
+  lastUpdated: string;
+}
+
+export interface IdiolectAnalysis {
+  tone: ToneLevel;
+  formality: FormalityLevel;
+  patterns: LanguagePattern[];
+  confidence: number;
+  analysisDate: string;
+}
+
+export interface LanguagePattern {
+  type: PatternType;
+  description: string;
+  examples: string[];
+  frequency: number;
+}
+
+export interface SpeechMetrics {
+  wordsPerMinute: number;
+  fillerWordCount: number;
+  fillerWordRate: number;
+  averagePauseLength: number;
+  longPauseCount: number;
+  repetitionCount: number;
+  totalDuration: number;
+  wordCount: number;
+  averageConfidence: number;
+}
+
+export enum IntentCategory {
+  WORK = 'work',
+  FAMILY = 'family',
+  ERRANDS = 'errands',
+  SOCIAL = 'social',
+  CASUAL = 'casual',
+  FORMAL = 'formal',
+  OTHER = 'other'
+}
+
+export enum ToneLevel {
+  VERY_CASUAL = 'very_casual',
+  CASUAL = 'casual',
+  NEUTRAL = 'neutral',
+  POLITE = 'polite',
+  FORMAL = 'formal',
+  VERY_FORMAL = 'very_formal'
+}
+
+export enum FormalityLevel {
+  INFORMAL = 'informal',
+  SEMI_FORMAL = 'semi_formal',
+  FORMAL = 'formal'
+}
+
+export enum PatternType {
+  FILLER_WORDS = 'filler_words',
+  CONTRACTIONS = 'contractions',
+  POLITENESS_MARKERS = 'politeness_markers',
+  QUESTION_STYLE = 'question_style',
+  SENTENCE_LENGTH = 'sentence_length',
+  VOCABULARY_LEVEL = 'vocabulary_level',
+  SLANG_USAGE = 'slang_usage'
 }
 
 export interface TranslationVariant {
@@ -31,7 +101,7 @@ export interface PhraseAnalysis {
 }
 
 class MirrorLingoAPI {
-  private baseUrl = process.env.REACT_APP_API_URL || 'https://your-api-gateway-url.amazonaws.com';
+  private baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
   private userId: string = '';
 
   constructor() {
@@ -48,57 +118,90 @@ class MirrorLingoAPI {
     }
   }
 
-  async analyzePhrase(phrase: string): Promise<PhraseAnalysis> {
+  async analyzePhrase(inputPhrase: string): Promise<PhraseAnalysis> {
     try {
-      const response = await fetch(`${this.baseUrl}/phrases`, {
+      const response: Response = await fetch(`${this.baseUrl}/phrases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': this.userId,
         },
-        body: JSON.stringify({ phrases: [phrase] }),
+        body: JSON.stringify({ phrases: [inputPhrase] }),
       });
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
       }
 
-      const data = await response.json();
-      const analysis = data.analyses[0];
-      
-      // Cache the analysis offline
-      await this.cacheAnalysis(phrase, analysis);
-      
+      const data: { success: boolean; data: { phrases: Phrase[]; profile: IdiolectProfile } } = await response.json();
+
+      if (!data.success || !data.data) {
+        throw new Error('Invalid API response');
+      }
+
+      // Backend returns { phrases: Phrase[], profile: IdiolectProfile }
+      const { phrases: returnedPhrases, profile } = data.data;
+      const phraseResult = returnedPhrases[0]; // Get first phrase
+
+      // Convert to expected format for mobile app
+      const analysis: PhraseAnalysis = {
+        phrase: phraseResult.englishText,
+        idiolectProfile: profile,
+        translations: {
+          literal: `Literal translation for: ${phraseResult.englishText}`,
+          natural: `Natural translation for: ${phraseResult.englishText}`,
+          explanation: 'Translation explanation',
+          styleMatch: 0.85
+        },
+        learningTips: ['Practice tip 1', 'Practice tip 2']
+      };
       return analysis;
     } catch (error) {
       console.error('API Error:', error);
       // Try to get cached analysis or return mock
-      const cached = await this.getCachedAnalysis(phrase);
-      return cached || this.getMockAnalysis(phrase);
+      const cached = await this.getCachedAnalysis(inputPhrase);
+      return cached || this.getMockAnalysis(inputPhrase);
     }
   }
 
-  async analyzePhrases(phrases: string[]): Promise<PhraseAnalysis[]> {
+  async analyzePhrases(inputPhrases: string[]): Promise<PhraseAnalysis[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/phrases`, {
+      const response: Response = await fetch(`${this.baseUrl}/phrases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-user-id': this.userId,
         },
-        body: JSON.stringify({ phrases }),
+        body: JSON.stringify({ phrases: inputPhrases }),
       });
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
       }
 
-      const data = await response.json();
-      return data.analyses;
+      const data: { success: boolean; data: { phrases: Phrase[]; profile: IdiolectProfile } } = await response.json();
+
+      if (!data.success || !data.data) {
+        throw new Error('Invalid API response');
+      }
+
+      // Convert backend response to mobile format
+      const { phrases: returnedPhrases, profile } = data.data;
+      return returnedPhrases.map((phraseItem: Phrase): PhraseAnalysis => ({
+        phrase: phraseItem.englishText,
+        idiolectProfile: profile,
+        translations: {
+          literal: `Literal translation for: ${phraseItem.englishText}`,
+          natural: `Natural translation for: ${phraseItem.englishText}`,
+          explanation: 'Translation explanation',
+          styleMatch: 0.85
+        },
+        learningTips: ['Practice tip 1', 'Practice tip 2']
+      }));
     } catch (error) {
       console.error('API Error:', error);
       // Return mock data for demo
-      return phrases.map(phrase => this.getMockAnalysis(phrase));
+      return inputPhrases.map(p => this.getMockAnalysis(p));
     }
   }
 
@@ -127,17 +230,17 @@ class MirrorLingoAPI {
   async syncOfflineData(): Promise<void> {
     try {
       const { phrases, progress } = await offlineService.getUnsyncedData();
-      
+
       // Sync phrases
       for (const phrase of phrases) {
         await this.syncPhrase(phrase);
       }
-      
+
       // Sync progress
       for (const progressItem of progress) {
         await this.syncProgress(progressItem);
       }
-      
+
       console.log('Offline data synced successfully');
     } catch (error) {
       console.error('Failed to sync offline data:', error);
@@ -231,18 +334,26 @@ class MirrorLingoAPI {
     return {
       phrase,
       idiolectProfile: {
-        tone: 'casual',
-        formality: 0.3,
-        patterns: ['contractions', 'filler_words'],
-        fillerWords: ['um', 'like'],
-        contractions: true,
-        intents: [
+        userId: this.userId,
+        overallTone: ToneLevel.CASUAL,
+        overallFormality: FormalityLevel.INFORMAL,
+        commonPatterns: [
           {
-            category: 'daily_conversation',
-            phrases: [phrase],
-            confidence: 0.85,
+            type: PatternType.CONTRACTIONS,
+            description: 'Uses contractions frequently',
+            examples: ["don't", "can't", "won't"],
+            frequency: 0.8
           },
+          {
+            type: PatternType.FILLER_WORDS,
+            description: 'Occasional filler words',
+            examples: ['um', 'like'],
+            frequency: 0.3
+          }
         ],
+        preferredIntents: [IntentCategory.CASUAL, IntentCategory.SOCIAL],
+        analysisCount: 1,
+        lastUpdated: new Date().toISOString()
       },
       translations: {
         literal: this.getMockLiteralTranslation(phrase),

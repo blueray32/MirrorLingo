@@ -142,29 +142,29 @@ export class TranscriptionService {
     return await response.text()
   }
   
-  private static parseTranscriptJson(transcriptJson: string): any {
+  private static parseTranscriptJson(transcriptJson: string): { transcript: string; confidence: number; alternatives: Array<{ transcript: string; confidence: number }> } {
     const data = JSON.parse(transcriptJson)
     const results = data.results
     
     return {
       transcript: results.transcripts[0].transcript,
       confidence: this.calculateAverageConfidence(results.items),
-      alternatives: results.transcripts.slice(1).map((alt: any) => ({
+      alternatives: results.transcripts.slice(1).map((alt: { transcript: string }) => ({
         transcript: alt.transcript,
         confidence: this.calculateAverageConfidence(results.items)
       }))
     }
   }
   
-  private static calculateAverageConfidence(items: any[]): number {
+  private static calculateAverageConfidence(items: Array<{ type: string; alternatives: Array<{ confidence: string }> }>): number {
     const confidenceScores = items
-      .filter((item: any) => item.type === 'pronunciation')
-      .map((item: any) => parseFloat(item.alternatives[0].confidence))
+      .filter((item) => item.type === 'pronunciation')
+      .map((item) => parseFloat(item.alternatives[0].confidence))
     
     return confidenceScores.reduce((sum, conf) => sum + conf, 0) / confidenceScores.length
   }
   
-  private static analyzeSpeechMetrics(transcriptionResult: any): SpeechMetrics {
+  private static analyzeSpeechMetrics(transcriptionResult: { transcript: string; confidence: number }): SpeechMetrics {
     const { transcript } = transcriptionResult
     const words = transcript.split(/\s+/).filter((word: string) => word.length > 0)
     const wordCount = words.length
@@ -201,7 +201,7 @@ export class TranscriptionService {
   
   private static async storeTranscriptionResult(
     userId: string, 
-    result: any, 
+    result: { transcript: string; confidence: number }, 
     speechMetrics: SpeechMetrics
   ): Promise<void> {
     const command = new PutItemCommand({

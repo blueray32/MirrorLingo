@@ -2,153 +2,164 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Switch,
-  TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  Switch,
+  TouchableOpacity,
   Alert,
+  ScrollView,
 } from 'react-native';
-import { notificationService } from '../services/notifications';
-import { offlineService } from '../services/offline';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const SettingsScreen: React.FC = () => {
-  const [settings, setSettings] = useState({
-    notificationsEnabled: true,
-    dailyReminderEnabled: true,
-    dailyReminderTime: { hour: 19, minute: 0 },
-  });
-  const [storageInfo, setStorageInfo] = useState({
-    phrasesCount: 0,
-    progressCount: 0,
-    unsyncedPhrases: 0,
-    unsyncedProgress: 0,
-  });
+  const [notifications, setNotifications] = useState(true);
+  const [autoSync, setAutoSync] = useState(true);
+  const [offlineMode, setOfflineMode] = useState(false);
 
   useEffect(() => {
     loadSettings();
-    loadStorageInfo();
   }, []);
 
   const loadSettings = async () => {
-    const savedSettings = await offlineService.getSettings();
-    setSettings(savedSettings);
-  };
-
-  const loadStorageInfo = async () => {
-    const info = await offlineService.getStorageInfo();
-    setStorageInfo(info);
-  };
-
-  const updateSetting = async (key: string, value: any) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    await offlineService.saveSettings(newSettings);
-
-    // Handle notification settings
-    if (key === 'notificationsEnabled') {
-      if (value) {
-        await notificationService.requestPermissions();
+    try {
+      const settings = await AsyncStorage.getItem('userSettings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        setNotifications(parsed.notifications ?? true);
+        setAutoSync(parsed.autoSync ?? true);
+        setOfflineMode(parsed.offlineMode ?? false);
       }
-    }
-
-    if (key === 'dailyReminderEnabled') {
-      if (value && settings.notificationsEnabled) {
-        notificationService.scheduleDaily(
-          settings.dailyReminderTime.hour,
-          settings.dailyReminderTime.minute
-        );
-      } else {
-        notificationService.cancelDailyReminder();
-      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
     }
   };
 
-  const clearOfflineData = () => {
+  const saveSettings = async (newSettings: any) => {
+    try {
+      const settings = {
+        notifications,
+        autoSync,
+        offlineMode,
+        ...newSettings,
+      };
+      await AsyncStorage.setItem('userSettings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  };
+
+  const handleNotificationToggle = (value: boolean) => {
+    setNotifications(value);
+    saveSettings({ notifications: value });
+  };
+
+  const handleAutoSyncToggle = (value: boolean) => {
+    setAutoSync(value);
+    saveSettings({ autoSync: value });
+  };
+
+  const handleOfflineModeToggle = (value: boolean) => {
+    setOfflineMode(value);
+    saveSettings({ offlineMode: value });
+  };
+
+  const clearData = () => {
     Alert.alert(
-      'Clear Offline Data',
-      'This will remove all cached phrases and progress. Are you sure?',
+      'Clear All Data',
+      'This will delete all your phrases, progress, and settings. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Clear',
+          text: 'Clear Data',
           style: 'destructive',
           onPress: async () => {
-            await offlineService.clearAllData();
-            await loadStorageInfo();
-            Alert.alert('Success', 'Offline data cleared');
+            try {
+              await AsyncStorage.clear();
+              Alert.alert('Success', 'All data has been cleared.');
+              // Reset settings to defaults
+              setNotifications(true);
+              setAutoSync(true);
+              setOfflineMode(false);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear data.');
+            }
           },
         },
       ]
     );
   };
 
-  const testNotification = () => {
-    notificationService.scheduleSpacedRepetition({
-      phraseId: 'test-123',
-      phrase: 'Could you take a look at this?',
-      nextReview: new Date(Date.now() + 5000), // 5 seconds from now
-      interval: 1,
-      easeFactor: 2.5,
-      repetitions: 0,
-    });
-    Alert.alert('Test Notification', 'A test notification will appear in 5 seconds');
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Settings</Text>
-
+      <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Enable Notifications</Text>
+            <Text style={styles.settingLabel}>Practice Reminders</Text>
             <Switch
-              value={settings.notificationsEnabled}
-              onValueChange={(value) => updateSetting('notificationsEnabled', value)}
+              value={notifications}
+              onValueChange={handleNotificationToggle}
+              trackColor={{ false: '#e2e8f0', true: '#667eea' }}
+              thumbColor={notifications ? '#ffffff' : '#cbd5e0'}
             />
           </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Daily Reminder</Text>
-            <Switch
-              value={settings.dailyReminderEnabled}
-              onValueChange={(value) => updateSetting('dailyReminderEnabled', value)}
-              disabled={!settings.notificationsEnabled}
-            />
-          </View>
-
-          <TouchableOpacity style={styles.button} onPress={testNotification}>
-            <Text style={styles.buttonText}>Test Notification</Text>
-          </TouchableOpacity>
+          <Text style={styles.settingDescription}>
+            Get daily reminders to practice your Spanish phrases
+          </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Offline Storage</Text>
-          
-          <View style={styles.storageInfo}>
-            <Text style={styles.storageText}>Phrases: {storageInfo.phrasesCount}</Text>
-            <Text style={styles.storageText}>Progress Records: {storageInfo.progressCount}</Text>
-            <Text style={styles.storageText}>Unsynced Phrases: {storageInfo.unsyncedPhrases}</Text>
-            <Text style={styles.storageText}>Unsynced Progress: {storageInfo.unsyncedProgress}</Text>
+          <Text style={styles.sectionTitle}>Data & Sync</Text>
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Auto Sync</Text>
+            <Switch
+              value={autoSync}
+              onValueChange={handleAutoSyncToggle}
+              trackColor={{ false: '#e2e8f0', true: '#667eea' }}
+              thumbColor={autoSync ? '#ffffff' : '#cbd5e0'}
+            />
           </View>
+          <Text style={styles.settingDescription}>
+            Automatically sync your progress when connected to internet
+          </Text>
 
-          <TouchableOpacity 
-            style={[styles.button, styles.dangerButton]} 
-            onPress={clearOfflineData}
-          >
-            <Text style={styles.buttonText}>Clear Offline Data</Text>
-          </TouchableOpacity>
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Offline Mode</Text>
+            <Switch
+              value={offlineMode}
+              onValueChange={handleOfflineModeToggle}
+              trackColor={{ false: '#e2e8f0', true: '#667eea' }}
+              thumbColor={offlineMode ? '#ffffff' : '#cbd5e0'}
+            />
+          </View>
+          <Text style={styles.settingDescription}>
+            Use the app without internet connection (limited features)
+          </Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.aboutText}>
-            MirrorLingo Mobile v1.0.0{'\n'}
-            Your Personal Spanish Learning Coach{'\n\n'}
-            Built with React Native and AWS
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Version</Text>
+            <Text style={styles.infoValue}>1.0.0</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Build</Text>
+            <Text style={styles.infoValue}>2026.01.06</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Platform</Text>
+            <Text style={styles.infoValue}>React Native</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Data Management</Text>
+          <TouchableOpacity style={styles.dangerButton} onPress={clearData}>
+            <Text style={styles.dangerButtonText}>Clear All Data</Text>
+          </TouchableOpacity>
+          <Text style={styles.settingDescription}>
+            This will permanently delete all your phrases and progress
           </Text>
         </View>
       </ScrollView>
@@ -159,76 +170,75 @@ export const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8fafc',
   },
   content: {
+    flex: 1,
     padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 30,
   },
   section: {
     backgroundColor: 'white',
-    padding: 20,
     borderRadius: 12,
+    padding: 20,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    color: '#1a202c',
+    marginBottom: 16,
   },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    marginBottom: 8,
   },
   settingLabel: {
     fontSize: 16,
-    color: '#333',
+    color: '#4a5568',
+    fontWeight: '600',
   },
-  button: {
-    backgroundColor: '#4CAF50',
-    padding: 12,
-    borderRadius: 8,
+  settingDescription: {
+    fontSize: 14,
+    color: '#718096',
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 15,
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 16,
+    color: '#4a5568',
+    fontWeight: '600',
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#718096',
   },
   dangerButton: {
-    backgroundColor: '#f44336',
+    backgroundColor: '#e53e3e',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  buttonText: {
+  dangerButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  storageInfo: {
-    backgroundColor: '#f9f9f9',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  storageText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  aboutText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
 });

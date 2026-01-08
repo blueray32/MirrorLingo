@@ -1,32 +1,28 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { IdiolectAnalyzer } from '../services/idiolectAnalyzer';
-import { 
-  CreatePhrasesRequest, 
-  CreatePhrasesResponse, 
+import {
+  CreatePhrasesRequest,
+  CreatePhrasesResponse,
   GetPhrasesResponse,
-  validatePhrases 
+  validatePhrases
 } from '../models/phrase';
+import { getUserIdFromEvent, getCorsHeaders } from '../utils/auth';
 
-// CORS headers for all responses
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-};
+// Store CORS headers at handler level
+let currentCorsHeaders: Record<string, string>;
 
 export const handler = async (
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> => {
-  
-  console.log('Event:', JSON.stringify(event, null, 2));
-  
+  currentCorsHeaders = getCorsHeaders(event);
+
   try {
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
       return {
         statusCode: 200,
-        headers: CORS_HEADERS,
+        headers: currentCorsHeaders,
         body: ''
       };
     }
@@ -34,7 +30,7 @@ export const handler = async (
     // Extract user ID from Cognito authorizer
     const userId = getUserIdFromEvent(event);
     if (!userId) {
-      return createErrorResponse(401, 'Unauthorized: No user ID found');
+      return createErrorResponse(401, 'User authentication required');
     }
 
     // Route based on HTTP method
@@ -55,18 +51,23 @@ export const handler = async (
 
 // Handle POST /phrases - Create and analyze new phrases
 async function handleCreatePhrases(
-  event: APIGatewayProxyEvent, 
+  event: APIGatewayProxyEvent,
   userId: string
 ): Promise<APIGatewayProxyResult> {
-  
+
   try {
     // Parse request body
     if (!event.body) {
       return createErrorResponse(400, 'Request body is required');
     }
 
-    const request: CreatePhrasesRequest = JSON.parse(event.body);
-    
+    let request: CreatePhrasesRequest;
+    try {
+      request = JSON.parse(event.body);
+    } catch {
+      return createErrorResponse(400, 'Invalid JSON in request body');
+    }
+
     // Validate input
     if (!request.phrases) {
       return createErrorResponse(400, 'Phrases array is required');
@@ -78,12 +79,11 @@ async function handleCreatePhrases(
     }
 
     // Analyze phrases
-    console.log(`Analyzing ${request.phrases.length} phrases for user ${userId}`);
     const result = await IdiolectAnalyzer.analyzeUserPhrases(userId, request.phrases);
-    
+
     // Generate analysis summary
     const summary = IdiolectAnalyzer.generateAnalysisSummary(result.profile);
-    
+
     const response: CreatePhrasesResponse = {
       success: true,
       data: result,
@@ -93,7 +93,7 @@ async function handleCreatePhrases(
     return {
       statusCode: 201,
       headers: {
-        ...CORS_HEADERS,
+        ...currentCorsHeaders,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(response)
@@ -101,16 +101,16 @@ async function handleCreatePhrases(
 
   } catch (error) {
     console.error('Error creating phrases:', error);
-    
+
     const response: CreatePhrasesResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to analyze phrases'
+      error: 'Failed to analyze phrases'
     };
 
     return {
       statusCode: 500,
       headers: {
-        ...CORS_HEADERS,
+        ...currentCorsHeaders,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(response)
@@ -120,11 +120,10 @@ async function handleCreatePhrases(
 
 // Handle GET /phrases - Retrieve user's phrases and profile
 async function handleGetPhrases(userId: string): Promise<APIGatewayProxyResult> {
-  
+
   try {
-    console.log(`Retrieving phrases for user ${userId}`);
     const userData = await IdiolectAnalyzer.getUserData(userId);
-    
+
     const response: GetPhrasesResponse = {
       success: true,
       data: userData
@@ -133,7 +132,7 @@ async function handleGetPhrases(userId: string): Promise<APIGatewayProxyResult> 
     return {
       statusCode: 200,
       headers: {
-        ...CORS_HEADERS,
+        ...currentCorsHeaders,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(response)
@@ -141,48 +140,20 @@ async function handleGetPhrases(userId: string): Promise<APIGatewayProxyResult> 
 
   } catch (error) {
     console.error('Error getting phrases:', error);
-    
+
     const response: GetPhrasesResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to retrieve phrases'
+      error: 'Failed to retrieve phrases'
     };
 
     return {
       statusCode: 500,
       headers: {
-        ...CORS_HEADERS,
+        ...currentCorsHeaders,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(response)
     };
-  }
-}
-
-// Extract user ID from Cognito authorizer context
-function getUserIdFromEvent(event: APIGatewayProxyEvent): string | null {
-  try {
-    // In API Gateway with Cognito authorizer, user info is in requestContext
-    const claims = event.requestContext.authorizer?.claims;
-    
-    if (claims && claims.sub) {
-      return claims.sub; // Cognito user ID (sub claim)
-    }
-
-    // Fallback: check for custom authorizer
-    if (event.requestContext.authorizer?.userId) {
-      return event.requestContext.authorizer.userId;
-    }
-
-    // For testing: allow override via header (remove in production)
-    if (process.env.NODE_ENV === 'development' && event.headers['x-user-id']) {
-      console.warn('Using test user ID from header - remove in production!');
-      return event.headers['x-user-id'];
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error extracting user ID:', error);
-    return null;
   }
 }
 
@@ -191,7 +162,7 @@ function createErrorResponse(statusCode: number, message: string): APIGatewayPro
   return {
     statusCode,
     headers: {
-      ...CORS_HEADERS,
+      ...currentCorsHeaders,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -200,16 +171,3 @@ function createErrorResponse(statusCode: number, message: string): APIGatewayPro
     })
   };
 }
-
-// Health check endpoint (if needed)
-export const healthCheck = async (): Promise<APIGatewayProxyResult> => {
-  return {
-    statusCode: 200,
-    headers: CORS_HEADERS,
-    body: JSON.stringify({
-      success: true,
-      message: 'MirrorLingo API is healthy',
-      timestamp: new Date().toISOString()
-    })
-  };
-};

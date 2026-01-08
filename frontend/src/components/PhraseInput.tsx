@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import { usePhrasesApi, usePhraseValidation } from '../hooks/usePhrasesApi';
+import { Phrase, IdiolectProfile } from '../types/phrases';
 
 interface PhraseInputProps {
-  onAnalysisComplete?: () => void;
+  userId: string;
+  onAnalysisComplete?: (data: { phrases: Phrase[], profile: IdiolectProfile }) => void;
 }
 
-export const PhraseInput: React.FC<PhraseInputProps> = ({ onAnalysisComplete }) => {
+export const PhraseInput: React.FC<PhraseInputProps> = ({ userId, onAnalysisComplete }) => {
   const [phrases, setPhrases] = useState<string[]>(['', '', '', '', '']);
   const [showAllInputs, setShowAllInputs] = useState(false);
-  
-  const { submitPhrases, isLoading, error, clearError } = usePhrasesApi();
+
+  const { submitPhrases, isLoading, error, clearError } = usePhrasesApi(userId);
   const { validatePhrases } = usePhraseValidation();
 
   const handlePhraseChange = (index: number, value: string) => {
     const newPhrases = [...phrases];
     newPhrases[index] = value;
     setPhrases(newPhrases);
-    
+
     // Clear error when user starts typing
     if (error) {
       clearError();
@@ -39,17 +41,15 @@ export const PhraseInput: React.FC<PhraseInputProps> = ({ onAnalysisComplete }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validation = validatePhrases(phrases);
     if (!validation.valid) {
-      // Handle validation errors (could show in UI)
-      console.error('Validation errors:', validation.errors);
       return;
     }
 
-    const success = await submitPhrases(phrases);
-    if (success && onAnalysisComplete) {
-      onAnalysisComplete();
+    const result = await submitPhrases(phrases);
+    if (result && onAnalysisComplete) {
+      onAnalysisComplete(result);
     }
   };
 
@@ -128,7 +128,7 @@ export const PhraseInput: React.FC<PhraseInputProps> = ({ onAnalysisComplete }) 
           <div className="phrase-count">
             {filledPhrases.length} phrase{filledPhrases.length !== 1 ? 's' : ''} entered
           </div>
-          
+
           {error && (
             <div className="error-message">
               {error}

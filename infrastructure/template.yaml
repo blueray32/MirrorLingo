@@ -8,15 +8,20 @@ Parameters:
     Default: dev
     AllowedValues: [dev, staging, prod]
     Description: Environment name
+  AllowedOrigins:
+    Type: String
+    Default: 'http://localhost:3000'
+    Description: Comma-separated list of allowed CORS origins
 
 Globals:
   Function:
     Timeout: 15
-    Runtime: nodejs18.x
+    Runtime: nodejs20.x
     Environment:
       Variables:
         PHRASES_TABLE: !Ref PhrasesTable
         BEDROCK_MODEL_ID: anthropic.claude-3-haiku-20240307-v1:0
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
 
 Resources:
   # DynamoDB Table for storing user phrases and analysis
@@ -113,7 +118,7 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
-              Resource: '*'
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0'
       Events:
         CreatePhrase:
           Type: Api
@@ -175,13 +180,40 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
-              Resource: '*'
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0'
       Events:
         GenerateTranslations:
           Type: Api
           Properties:
             RestApiId: !Ref MirrorLingoApi
             Path: /translations
+            Method: POST
+
+  ConversationHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub MirrorLingo-ConversationHandler-${Environment}
+      CodeUri: ../backend/dist/
+      Handler: handlers/conversation-handler.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          PHRASES_TABLE: !Ref PhrasesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PhrasesTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0'
+      Events:
+        ConversationChat:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MirrorLingoApi
+            Path: /conversation
             Method: POST
 
 Outputs:

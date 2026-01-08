@@ -140,14 +140,18 @@ Get transcription results.
 ```
 
 ### POST /conversation
-Start AI conversation practice.
+Interactive Spanish conversation practice with personalized AI tutor.
 
 **Request:**
 ```json
 {
-  "topic": "daily_life",
   "message": "Hola, ¿cómo estás?",
-  "isVoice": false
+  "topic": "daily_life|work|travel|food|family|hobbies|shopping|health|weather",
+  "userProfile": {
+    "tone": "polite|casual|direct|formal",
+    "formality": "very_casual|casual|neutral|formal|very_formal",
+    "patterns": ["Uses contractions", "Prefers indirect language"]
+  }
 }
 ```
 
@@ -158,10 +162,21 @@ Start AI conversation practice.
   "data": {
     "response": "¡Hola! Estoy muy bien, gracias. ¿Y tú qué tal?",
     "audioUrl": "https://s3.../response.mp3",
-    "feedback": {
-      "corrections": [],
-      "suggestions": ["Try using '¿qué tal?' for casual conversations"]
-    }
+    "corrections": [
+      {
+        "original": "como estas",
+        "corrected": "cómo estás", 
+        "explanation": "Don't forget the accent marks"
+      }
+    ],
+    "vocabulary": [
+      {
+        "spanish": "¿qué tal?",
+        "english": "how's it going?",
+        "context": "Casual greeting, matches your informal style"
+      }
+    ],
+    "conversationId": "conv-123"
   }
 }
 ```

@@ -3,6 +3,7 @@ import { useConversationApi } from '../hooks/useConversationApi';
 import { ConversationTopic, TOPIC_LABELS } from '../types/conversation';
 
 interface ConversationPracticeProps {
+  userId: string;
   userProfile?: {
     tone: string;
     formality: string;
@@ -12,6 +13,7 @@ interface ConversationPracticeProps {
 }
 
 export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
+  userId,
   userProfile,
   onSessionComplete
 }) => {
@@ -27,7 +29,7 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
     sendMessage,
     startConversation,
     clearConversation
-  } = useConversationApi();
+  } = useConversationApi(userId);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -1,20 +1,26 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAudioApi } from '../hooks/useAudioApi';
+import { usePhrasesApi } from '../hooks/usePhrasesApi';
+import { Phrase, IdiolectProfile } from '../types/phrases';
 
 interface VoiceRecorderProps {
+  userId: string;
   onRecordingComplete: (audioBlob: Blob, duration: number) => void;
-  onAnalysisComplete: () => void;
+  onAnalysisComplete: (data?: { phrases: Phrase[], profile: IdiolectProfile }) => void;
 }
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
+  userId,
   onRecordingComplete,
   onAnalysisComplete
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isAnalyzingPhrases, setIsAnalyzingPhrases] = useState(false);
 
   const { uploadAudio, isUploading, uploadError, transcriptionResult, clearError } = useAudioApi();
+  const { submitPhrases } = usePhrasesApi(userId);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -22,12 +28,12 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const startRecording = useCallback(async () => {
     try {
       clearError();
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 44100
-        } 
+        }
       });
 
       mediaRecorderRef.current = new MediaRecorder(stream, {
@@ -44,13 +50,15 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(chunks, { type: 'audio/webm' });
         onRecordingComplete(audioBlob, recordingTime);
-        
+
         // Upload and process audio
-        const success = await uploadAudio(audioBlob, 'test-user-123');
+        const success = await uploadAudio(audioBlob, userId);
         if (success) {
-          onAnalysisComplete();
+          // Note: audioBlob upload doesn't yet return analysis data
+          // Analysis happens separately via handleAnalyzeTranscript
+          // This is just for recording completion notification
         }
-        
+
         stream.getTracks().forEach(track => track.stop());
         setRecordingTime(0);
         if (timerRef.current) {
@@ -67,8 +75,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         setRecordingTime(prev => prev + 1);
       }, 1000);
 
-    } catch (error) {
-      console.error('Error starting recording:', error);
+    } catch {
       alert('Could not access microphone. Please check permissions.');
     }
   }, [clearError, uploadAudio, onRecordingComplete, onAnalysisComplete, recordingTime]);
@@ -79,6 +86,15 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       setIsRecording(false);
       setAudioLevel(0);
     }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -95,7 +111,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           <h3>Processing Your Recording...</h3>
           <p>Analyzing your speech patterns and converting to text</p>
         </div>
-        
+
         <style jsx>{`
           .voice-recorder.processing {
             background: white;
@@ -142,7 +158,39 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     );
   }
 
+  // Extract phrases from transcript
+  const extractPhrasesFromTranscript = (transcript: string): string[] => {
+    return transcript
+      .split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 5)
+      .slice(0, 10);
+  };
+
+  // Handle analyzing the transcript
+  const handleAnalyzeTranscript = async () => {
+    if (!transcriptionResult) return;
+
+    const phrases = extractPhrasesFromTranscript(transcriptionResult.transcript);
+    if (phrases.length === 0) {
+      alert('Could not extract enough phrases from the transcript. Please try recording again with more speech.');
+      return;
+    }
+
+    setIsAnalyzingPhrases(true);
+    try {
+      const result = await submitPhrases(phrases);
+      if (result) {
+        onAnalysisComplete(result);
+      }
+    } finally {
+      setIsAnalyzingPhrases(false);
+    }
+  };
+
   if (transcriptionResult) {
+    const extractedPhrases = extractPhrasesFromTranscript(transcriptionResult.transcript);
+
     return (
       <div className="voice-recorder results">
         <div className="transcription-results">
@@ -165,8 +213,26 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
               <span className="value">{transcriptionResult.speechMetrics.wordCount}</span>
             </div>
           </div>
+
+          {extractedPhrases.length > 0 && (
+            <div className="extracted-phrases">
+              <h4>Extracted Phrases ({extractedPhrases.length}):</h4>
+              <ul>
+                {extractedPhrases.map((phrase, idx) => (
+                  <li key={idx}>"{phrase}"</li>
+                ))}
+              </ul>
+              <button
+                onClick={handleAnalyzeTranscript}
+                className="analyze-btn"
+                disabled={isAnalyzingPhrases}
+              >
+                {isAnalyzingPhrases ? 'Analyzing...' : 'Analyze My Speaking Style'}
+              </button>
+            </div>
+          )}
         </div>
-        
+
         <style jsx>{`
           .voice-recorder.results {
             background: white;
@@ -229,6 +295,58 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             font-weight: 600;
             font-size: 1.25rem;
           }
+
+          .extracted-phrases {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            text-align: left;
+          }
+
+          .extracted-phrases h4 {
+            color: #2d3748;
+            margin-bottom: 0.75rem;
+          }
+
+          .extracted-phrases ul {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 1rem 0;
+          }
+
+          .extracted-phrases li {
+            padding: 0.5rem 0.75rem;
+            background: #f8fafc;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid #4299e1;
+            color: #4a5568;
+            font-style: italic;
+            font-size: 0.9rem;
+          }
+
+          .analyze-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+
+          .analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+          }
+
+          .analyze-btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+          }
         `}</style>
       </div>
     );
@@ -255,9 +373,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         </div>
 
         <div className="audio-visualizer">
-          <div 
+          <div
             className="audio-level-bar"
-            style={{ 
+            style={{
               height: `${Math.max(audioLevel * 100, 5)}%`,
               backgroundColor: isRecording ? '#48bb78' : '#e2e8f0'
             }}
@@ -266,14 +384,14 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
         <div className="recording-controls">
           {!isRecording ? (
-            <button 
+            <button
               onClick={startRecording}
               className="record-btn start"
             >
               🎤 Start Recording
             </button>
           ) : (
-            <button 
+            <button
               onClick={stopRecording}
               className="record-btn stop"
             >

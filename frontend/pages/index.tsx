@@ -9,7 +9,10 @@ import { PracticeSession } from '../src/components/PracticeSession';
 import { AnalyticsDashboard } from '../src/components/AnalyticsDashboard';
 import { PronunciationFeedback } from '../src/components/PronunciationFeedback';
 import { ConversationPractice } from '../src/components/ConversationPractice';
-import { usePhrasesApi } from '../src/hooks/usePhrasesApi';
+import { Phrase, IdiolectProfile } from '../src/types/phrases';
+
+// Demo user ID - in production, get from auth context
+const DEMO_USER_ID = 'demo-user-123';
 
 export default function Home() {
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -20,31 +23,25 @@ export default function Home() {
   const [showConversation, setShowConversation] = useState(false);
   const [inputMode, setInputMode] = useState<'voice' | 'text' | 'background'>('voice');
   const [backgroundRecording, setBackgroundRecording] = useState(false);
-  const [selectedPhrase, setSelectedPhrase] = useState<{english: string, spanish: string} | null>(null);
-  const { phrases, profile, loadPhrases, isLoading } = usePhrasesApi();
+  const [selectedPhrase, setSelectedPhrase] = useState<{ english: string, spanish: string } | null>(null);
+  const [phrases, setPhrases] = useState<Phrase[]>([]);
+  const [profile, setProfile] = useState<IdiolectProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load existing phrases on component mount
-  useEffect(() => {
-    // Skip auto-loading for demo - let users start fresh
-    // loadPhrases().then((success) => {
-    //   if (success && phrases.length > 0) {
-    //     setShowAnalysis(true);
-    //   }
-    // });
-  }, []);
-
-  const handleAnalysisComplete = () => {
+  const handleAnalysisComplete = (data?: { phrases: Phrase[], profile: IdiolectProfile }) => {
+    if (data) {
+      setPhrases(data.phrases);
+      setProfile(data.profile);
+    }
     setShowAnalysis(true);
   };
 
-  const handleRecordingComplete = async (audioBlob: Blob, duration: number) => {
-    console.log('Recording completed:', { size: audioBlob.size, duration });
-    // TODO: Send audio to backend for transcription and analysis
+  const handleRecordingComplete = async (_audioBlob: Blob, _duration: number) => {
+    // Audio processing handled by useAudioApi hook
   };
 
-  const handlePhraseDetected = (phrase: string, confidence: number) => {
-    console.log('Background phrase detected:', { phrase, confidence });
-    // TODO: Add to phrases collection and trigger analysis
+  const handlePhraseDetected = (_phrase: string, _confidence: number) => {
+    // Phrase analysis handled by usePhrasesApi hook
   };
 
   const handleStartOver = () => {
@@ -99,18 +96,15 @@ export default function Home() {
     setShowConversation(false);
   };
 
-  const handlePracticeComplete = (results: any) => {
-    console.log('Practice session completed:', results);
+  const handlePracticeComplete = (_results: { totalReviewed: number }) => {
     setShowPractice(false);
   };
 
-  const handleConversationComplete = (session: any) => {
-    console.log('Conversation session completed:', session);
+  const handleConversationComplete = (_session?: { messageCount: number }) => {
     setShowConversation(false);
   };
 
-  const handlePronunciationComplete = (score: number) => {
-    console.log('Pronunciation score:', score);
+  const handlePronunciationComplete = (_score: number) => {
     // Could show celebration or move to next phrase
   };
 
@@ -149,9 +143,9 @@ export default function Home() {
             <h1>MirrorLingo</h1>
             <p>Your Personal Spanish Learning Coach</p>
           </div>
-          
+
           {showAnalysis && (
-            <button 
+            <button
               onClick={handleStartOver}
               className="start-over-btn"
             >
@@ -166,26 +160,26 @@ export default function Home() {
               <div className="hero-text">
                 <h2>Learn Spanish That Matches How You Actually Speak</h2>
                 <p>
-                  Record yourself speaking naturally or type your daily phrases. 
-                  MirrorLingo analyzes your personal speaking style and creates Spanish lessons 
+                  Record yourself speaking naturally or type your daily phrases.
+                  MirrorLingo analyzes your personal speaking style and creates Spanish lessons
                   based on how you actually communicate.
                 </p>
               </div>
 
               <div className="input-mode-selector">
-                <button 
+                <button
                   onClick={() => setInputMode('voice')}
                   className={`mode-btn ${inputMode === 'voice' ? 'active' : ''}`}
                 >
                   🎤 Record Voice
                 </button>
-                <button 
+                <button
                   onClick={() => setInputMode('text')}
                   className={`mode-btn ${inputMode === 'text' ? 'active' : ''}`}
                 >
                   ✏️ Type Phrases
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setInputMode('background');
                     setBackgroundRecording(!backgroundRecording);
@@ -197,7 +191,8 @@ export default function Home() {
               </div>
 
               {inputMode === 'voice' ? (
-                <VoiceRecorder 
+                <VoiceRecorder
+                  userId={DEMO_USER_ID}
                   onRecordingComplete={handleRecordingComplete}
                   onAnalysisComplete={handleAnalysisComplete}
                 />
@@ -205,11 +200,11 @@ export default function Home() {
                 <div className="background-mode-info">
                   <h3>Background Learning Mode</h3>
                   <p>
-                    MirrorLingo will listen in the background and automatically detect 
+                    MirrorLingo will listen in the background and automatically detect
                     phrases as you speak naturally throughout your day.
                   </p>
                   <div className="background-controls">
-                    <button 
+                    <button
                       onClick={() => setBackgroundRecording(!backgroundRecording)}
                       className={`background-toggle ${backgroundRecording ? 'active' : ''}`}
                     >
@@ -218,16 +213,21 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <PhraseInput onAnalysisComplete={handleAnalysisComplete} />
+                <PhraseInput userId={DEMO_USER_ID} onAnalysisComplete={handleAnalysisComplete} />
               )}
             </div>
           ) : showConversation ? (
             <div className="conversation-section">
-              <ConversationPractice 
-                userProfile={profile!}
+              <ConversationPractice
+                userId={DEMO_USER_ID}
+                userProfile={profile ? {
+                  tone: String(profile.overallTone),
+                  formality: String(profile.overallFormality),
+                  patterns: profile.commonPatterns.map(p => p.description)
+                } : undefined}
                 onSessionComplete={handleConversationComplete}
               />
-              
+
               <div className="navigation-buttons">
                 <button onClick={() => setShowConversation(false)} className="back-btn">
                   ← Back to Analysis
@@ -239,11 +239,11 @@ export default function Home() {
             </div>
           ) : showAnalytics ? (
             <div className="analytics-section">
-              <AnalyticsDashboard 
-                phrases={phrases} 
+              <AnalyticsDashboard
+                phrases={phrases}
                 profile={profile!}
               />
-              
+
               <div className="navigation-buttons">
                 <button onClick={() => setShowAnalytics(false)} className="back-btn">
                   ← Back to Analysis
@@ -255,12 +255,12 @@ export default function Home() {
             </div>
           ) : showPronunciation && selectedPhrase ? (
             <div className="pronunciation-section">
-              <PronunciationFeedback 
+              <PronunciationFeedback
                 englishPhrase={selectedPhrase.english}
                 spanishPhrase={selectedPhrase.spanish}
                 onComplete={handlePronunciationComplete}
               />
-              
+
               <div className="navigation-buttons">
                 <button onClick={() => setShowPronunciation(false)} className="back-btn">
                   ← Back to Translations
@@ -272,12 +272,12 @@ export default function Home() {
             </div>
           ) : showPractice ? (
             <div className="practice-section">
-              <PracticeSession 
-                phrases={phrases} 
+              <PracticeSession
+                phrases={phrases}
                 profile={profile!}
                 onSessionComplete={handlePracticeComplete}
               />
-              
+
               <div className="navigation-buttons">
                 <button onClick={() => setShowPractice(false)} className="back-btn">
                   ← Back to Analysis
@@ -289,12 +289,13 @@ export default function Home() {
             </div>
           ) : showTranslations ? (
             <div className="translations-section">
-              <SpanishTranslations 
-                phrases={phrases} 
+              <SpanishTranslations
+                phrases={phrases}
                 profile={profile!}
+                userId={DEMO_USER_ID}
                 onPronunciationPractice={handleShowPronunciation}
               />
-              
+
               <div className="navigation-buttons">
                 <button onClick={() => setShowTranslations(false)} className="back-btn">
                   ← Back to Analysis
@@ -306,12 +307,12 @@ export default function Home() {
             </div>
           ) : (
             <div className="analysis-section">
-              <IdiolectAnalysis 
-                phrases={phrases} 
-                profile={profile} 
+              <IdiolectAnalysis
+                phrases={phrases}
+                profile={profile}
                 isLoading={isLoading}
               />
-              
+
               {profile && (
                 <div className="next-steps">
                   <h3>What's Next?</h3>
@@ -361,9 +362,11 @@ export default function Home() {
         </footer>
 
         {/* Background Recorder - always rendered when active */}
-        <BackgroundRecorder 
+        <BackgroundRecorder
+          userId={DEMO_USER_ID}
           isActive={backgroundRecording}
           onPhraseDetected={handlePhraseDetected}
+          onAnalysisComplete={handleAnalysisComplete}
         />
       </main>
 

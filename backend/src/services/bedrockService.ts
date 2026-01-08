@@ -138,19 +138,19 @@ Focus on observable patterns, not assumptions. Be specific with examples.`;
       formality as FormalityLevel : FormalityLevel.SEMI_FORMAL;
   }
 
-  private static validatePatterns(patterns: any[]): any[] {
+  private static validatePatterns(patterns: Array<{ type?: string; description?: string; examples?: string[]; frequency?: number }>): Array<{ type: PatternType; description: string; examples: string[]; frequency: number }> {
     if (!Array.isArray(patterns)) return [];
     
     return patterns
       .filter(pattern => pattern && typeof pattern === 'object')
       .map(pattern => ({
-        type: this.validatePatternType(pattern.type),
+        type: this.validatePatternType(pattern.type || ''),
         description: String(pattern.description || ''),
         examples: Array.isArray(pattern.examples) ? 
           pattern.examples.map(String).slice(0, 3) : [],
         frequency: Math.max(0, Math.min(1, Number(pattern.frequency) || 0))
       }))
-      .slice(0, 5); // Limit to 5 patterns
+      .slice(0, 5);
   }
 
   private static validatePatternType(type: string): PatternType {

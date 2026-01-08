@@ -24,12 +24,14 @@ interface TranslationResult {
 interface SpanishTranslationsProps {
   phrases: Phrase[];
   profile: IdiolectProfile;
+  userId: string;
   onPronunciationPractice?: (englishPhrase: string, spanishPhrase: string) => void;
 }
 
 export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
   phrases,
   profile,
+  userId,
   onPronunciationPractice
 }) => {
   const [translations, setTranslations] = useState<TranslationResult[]>([]);
@@ -43,29 +45,34 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
     }
 
     setIsLoading(true);
-    
+
     try {
+      // Map selected IDs to their English text
+      const selectedPhrasesData = phrases
+        .filter(p => selectedPhrases.includes(p.phraseId))
+        .map(p => p.englishText);
+
       const response = await fetch('/api/translations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': 'demo-user-123'
+          'x-user-id': userId
         },
         body: JSON.stringify({
-          phraseIds: selectedPhrases
+          phrases: selectedPhrasesData,
+          profile: profile
         })
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         setTranslations(result.data.translations);
       } else {
         throw new Error(result.error);
       }
-      
-    } catch (error) {
-      console.error('Translation error:', error);
+
+    } catch {
       alert('Failed to generate translations. Please try again.');
     } finally {
       setIsLoading(false);
@@ -73,7 +80,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
   };
 
   const togglePhraseSelection = (phraseId: string) => {
-    setSelectedPhrases(prev => 
+    setSelectedPhrases(prev =>
       prev.includes(phraseId)
         ? prev.filter(id => id !== phraseId)
         : [...prev, phraseId]
@@ -81,7 +88,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
   };
 
   const selectAllPhrases = () => {
-    setSelectedPhrases(phrases.map(p => p.id));
+    setSelectedPhrases(phrases.map(p => p.phraseId));
   };
 
   const clearSelection = () => {
@@ -93,7 +100,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
       <div className="translation-header">
         <h2>🇪🇸 Your Personalized Spanish Translations</h2>
         <p>
-          Based on your {profile.tone} tone and {profile.formality} style,
+          Based on your {profile.overallTone} tone and {profile.overallFormality} style,
           here are Spanish translations that match how you actually speak.
         </p>
       </div>
@@ -114,20 +121,20 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
 
           <div className="phrase-list">
             {phrases.map((phrase) => (
-              <div 
-                key={phrase.id}
-                className={`phrase-item ${selectedPhrases.includes(phrase.id) ? 'selected' : ''}`}
-                onClick={() => togglePhraseSelection(phrase.id)}
+              <div
+                key={phrase.phraseId}
+                className={`phrase-item ${selectedPhrases.includes(phrase.phraseId) ? 'selected' : ''}`}
+                onClick={() => togglePhraseSelection(phrase.phraseId)}
               >
                 <div className="phrase-checkbox">
-                  <input 
+                  <input
                     type="checkbox"
-                    checked={selectedPhrases.includes(phrase.id)}
-                    onChange={() => togglePhraseSelection(phrase.id)}
+                    checked={selectedPhrases.includes(phrase.phraseId)}
+                    onChange={() => togglePhraseSelection(phrase.phraseId)}
                   />
                 </div>
                 <div className="phrase-content">
-                  <div className="phrase-text">"{phrase.text}"</div>
+                  <div className="phrase-text">"{phrase.englishText}"</div>
                   <div className="phrase-intent">{phrase.intent}</div>
                 </div>
               </div>
@@ -135,7 +142,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
           </div>
 
           <div className="generate-section">
-            <button 
+            <button
               onClick={handleGenerateTranslations}
               disabled={selectedPhrases.length === 0 || isLoading}
               className="generate-btn"
@@ -155,7 +162,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
         <div className="translations-results">
           <div className="results-header">
             <h3>Your Spanish Translations</h3>
-            <button 
+            <button
               onClick={() => {
                 setTranslations([]);
                 setSelectedPhrases([]);
@@ -224,7 +231,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
 
                 {onPronunciationPractice && (
                   <div className="pronunciation-practice">
-                    <button 
+                    <button
                       onClick={() => onPronunciationPractice(result.englishPhrase, result.translation.natural)}
                       className="practice-btn"
                     >

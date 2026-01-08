@@ -79,19 +79,19 @@ export const IdiolectAnalysis: React.FC<IdiolectAnalysisProps> = ({
             <div className="metric">
               <span className="metric-label">Tone:</span>
               <span className="metric-value tone-badge">
-                {profile.tone}
+                {profile.overallTone}
               </span>
             </div>
             <div className="metric">
               <span className="metric-label">Formality:</span>
               <span className="metric-value formality-badge">
-                {profile.formality}
+                {profile.overallFormality}
               </span>
             </div>
             <div className="metric">
-              <span className="metric-label">Confidence:</span>
+              <span className="metric-label">Analysis Count:</span>
               <span className="metric-value">
-                {Math.round(profile.confidence * 100)}%
+                {profile.analysisCount}
               </span>
             </div>
           </div>
@@ -101,17 +101,17 @@ export const IdiolectAnalysis: React.FC<IdiolectAnalysisProps> = ({
         <div className="analysis-card">
           <h3>Language Patterns</h3>
           <div className="patterns-list">
-            {profile.patterns.slice(0, 3).map((pattern, index) => (
+            {profile.commonPatterns.slice(0, 3).map((pattern, index) => (
               <div key={index} className="pattern-item">
                 <div className="pattern-header">
                   <span className="pattern-name">
-                    Pattern {index + 1}
+                    {pattern.type.replace('_', ' ')}
                   </span>
                   <span className="pattern-frequency">
-                    High
+                    {pattern.frequency > 0.7 ? 'High' : pattern.frequency > 0.4 ? 'Medium' : 'Low'}
                   </span>
                 </div>
-                <p className="pattern-description">{pattern}</p>
+                <p className="pattern-description">{pattern.description}</p>
               </div>
             ))}
           </div>
@@ -146,8 +146,8 @@ export const IdiolectAnalysis: React.FC<IdiolectAnalysisProps> = ({
           <h3>Your Phrases</h3>
           <div className="phrases-list">
             {phrases.map((phrase, index) => (
-              <div key={phrase.id} className="phrase-item">
-                <div className="phrase-text">"{phrase.text}"</div>
+              <div key={phrase.phraseId} className="phrase-item">
+                <div className="phrase-text">"{phrase.englishText}"</div>
                 <div className="phrase-meta">
                   <span className={`intent-tag intent-${phrase.intent}`}>
                     {phrase.intent}

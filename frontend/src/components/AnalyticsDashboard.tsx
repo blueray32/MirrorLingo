@@ -14,7 +14,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
   const stats = {
     totalPhrases: phrases.length,
-    averageConfidence: Math.round(phrases.reduce((sum, p) => sum + (p.confidence || 0), 0) / phrases.length * 100),
+    averageConfidence: Math.round(phrases.reduce((sum, p) => sum + (p.analysis?.confidence || 0), 0) / phrases.length * 100),
     mostCommonIntent: getMostCommonIntent(phrases),
     learningStreak: 7, // Mock data
     masteredPhrases: Math.floor(phrases.length * 0.3),
@@ -81,7 +81,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
               </div>
               <div className="insight-item">
                 <span className="insight-icon">🗣️</span>
-                <span>Your speaking style is <strong>{profile.tone}</strong> and <strong>{profile.formality}</strong></span>
+                <span>Your speaking style is <strong>{profile.overallTone}</strong> and <strong>{profile.overallFormality}</strong></span>
               </div>
               <div className="insight-item">
                 <span className="insight-icon">⏱️</span>
@@ -146,9 +146,9 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <div className="pattern-analysis">
               <h3>Your Speaking Patterns</h3>
               <div className="pattern-grid">
-                {profile.patterns.map((pattern, index) => (
+                {profile.commonPatterns.map((pattern, index) => (
                   <div key={index} className="pattern-card">
-                    <div className="pattern-text">{pattern}</div>
+                    <div className="pattern-text">{pattern.description}</div>
                     <div className="pattern-impact">
                       Impact: <span className="impact-level">Medium</span>
                     </div>

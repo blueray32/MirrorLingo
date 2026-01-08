@@ -23,7 +23,7 @@ describe('usePhrasesApi', () => {
       clearError: jest.fn()
     })
 
-    const { submitPhrases } = usePhrasesApi()
+    const { submitPhrases } = usePhrasesApi('test-user')
     expect(submitPhrases).toBeDefined()
   })
 
@@ -38,7 +38,7 @@ describe('usePhrasesApi', () => {
       clearError: jest.fn()
     })
 
-    const { isLoading } = usePhrasesApi()
+    const { isLoading } = usePhrasesApi('test-user')
     expect(isLoading).toBe(true)
   })
 
@@ -54,7 +54,7 @@ describe('usePhrasesApi', () => {
       clearError: jest.fn()
     })
 
-    const { error } = usePhrasesApi()
+    const { error } = usePhrasesApi('test-user')
     expect(error).toBe(errorMessage)
   })
 })

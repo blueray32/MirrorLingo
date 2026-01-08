@@ -1,21 +1,51 @@
 // Frontend TypeScript types matching backend models
 
 export interface Phrase {
-  id: string;
-  text: string;
-  intent: string;
-  confidence: number;
+  userId: string;
+  phraseId: string;
+  englishText: string;
+  intent: IntentCategory;
   createdAt: string;
+  updatedAt: string;
+  analysis?: IdiolectAnalysis;
+  speechMetrics?: SpeechMetrics;
+}
+
+export interface SpeechMetrics {
+  wordsPerMinute: number;
+  fillerWordCount: number;
+  fillerWordRate: number;
+  averagePauseLength: number;
+  longPauseCount: number;
+  repetitionCount: number;
+  totalDuration: number;
+  wordCount: number;
+  averageConfidence: number;
+}
+
+export interface IdiolectAnalysis {
+  tone: ToneLevel;
+  formality: FormalityLevel;
+  patterns: LanguagePattern[];
+  confidence: number;
+  analysisDate: string;
+}
+
+export interface LanguagePattern {
+  type: PatternType;
+  description: string;
+  examples: string[];
+  frequency: number;
 }
 
 export interface IdiolectProfile {
   userId: string;
-  tone: string;
-  formality: string;
-  patterns: string[];
-  confidence: number;
-  createdAt: string;
-  updatedAt: string;
+  overallTone: ToneLevel;
+  overallFormality: FormalityLevel;
+  commonPatterns: LanguagePattern[];
+  preferredIntents: IntentCategory[];
+  analysisCount: number;
+  lastUpdated: string;
 }
 
 // Enums

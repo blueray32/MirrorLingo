@@ -1,0 +1,44 @@
+
+> mirrorlingo-frontend@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+ ⚠ Port 3001 is in use, trying 3002 instead.
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3002
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1137ms
+ ○ Compiling / ...
+ ✓ Compiled / in 582ms (297 modules)
+Do not add <script> tags using next/head (see inline <script>). Use next/script instead. 
+See more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component
+ GET / 200 in 652ms
+ ✓ Compiled /_error in 38ms (299 modules)
+ GET /icon-192.png 404 in 47ms
+ GET / 200 in 35ms
+ GET /icon-192.png 404 in 4ms
+ GET / 200 in 39ms
+ GET /icon-192.png 404 in 11ms
+ ✓ Compiled /api/audio in 153ms (83 modules)
+Processing audio for user: test-user-123
+Content type: audio/webm
+Audio data length: 474380 characters
+ POST /api/audio 200 in 1682ms
+ ✓ Compiled /api/phrases in 49ms (85 modules)
+Analyzing 2 phrases for user: demo-user-123
+Analysis complete. 2 phrases, profile generated.
+ POST /api/phrases 200 in 1556ms
+ ✓ Compiled /api/translations in 46ms (82 modules)
+Translating 2 phrases using MyMemory API...
+Translating: "Just wanted to follow up on our conversation yesterday" -> expanded: "Just wanted to follow up on our conversation yesterday"
+Translating: "Let me know if you need anything else from my end" -> expanded: "Let me know if you need anything else from my end"
+Translating 2 phrases using MyMemory API...
+Translating: "Just wanted to follow up on our conversation yesterday" -> expanded: "Just wanted to follow up on our conversation yesterday"
+Translating: "Let me know if you need anything else from my end" -> expanded: "Let me know if you need anything else from my end"
+Successfully translated 2 phrases
+ POST /api/translations 200 in 999ms
+Successfully translated 2 phrases
+ POST /api/translations 200 in 1032ms
+[?25h

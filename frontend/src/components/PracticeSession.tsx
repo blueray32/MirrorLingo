@@ -20,6 +20,8 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   profile,
   onSessionComplete
 }) => {
+  const [translations, setTranslations] = useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = useState(true)
   const [scheduler] = useState(() => new SpacedRepetitionScheduler())
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([])
   const [currentItem, setCurrentItem] = useState<ReviewItem | null>(null)
@@ -31,12 +33,54 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     ratings: [] as number[]
   })
 
+  // Fetch translations for all phrases
   useEffect(() => {
+    const fetchTranslations = async () => {
+      try {
+        const response = await fetch('/api/translations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phrases: phrases.map(p => p.englishText),
+            profile: profile
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          const newTranslations: Record<string, string> = {};
+          result.data.translations.forEach((t: { englishPhrase: string; translation: { natural: string } }) => {
+            newTranslations[t.englishPhrase] = t.translation.natural;
+          });
+          setTranslations(newTranslations);
+        }
+      } catch {
+        // Translation fetch failed silently
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (phrases.length > 0) {
+      fetchTranslations();
+    } else {
+      setIsLoading(false);
+    }
+  }, [phrases, profile]);
+
+  // Initialize review items once translations are ready
+  useEffect(() => {
+    if (isLoading) return;
+
     // Convert phrases to review items
     const items: ReviewItem[] = phrases.map(phrase => ({
-      id: phrase.id,
-      content: phrase.text,
-      translation: `Spanish translation for: ${phrase.text}`, // TODO: Use real translations
+      id: phrase.phraseId,
+      content: phrase.englishText,
+      // Use the fetched translation, or fallback to a generic message if missing
+      translation: translations[phrase.englishText] || 'Translation unavailable',
       easeFactor: 2.5,
       interval: 1,
       repetitions: 0,
@@ -47,11 +91,49 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
 
     const dueItems = scheduler.getDueItems(items)
     setReviewItems(dueItems)
-    
+
     if (dueItems.length > 0) {
       setCurrentItem(dueItems[0])
     }
-  }, [phrases, scheduler])
+  }, [phrases, scheduler, translations, isLoading])
+
+  if (isLoading) {
+    return (
+      <div className="practice-session">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <h3>Preparing your session...</h3>
+          <p>Generating personalized translations</p>
+        </div>
+        <style jsx>{`
+          .practice-session {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 2rem;
+          }
+          .loading-state {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          }
+          .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   const handleRating = (rating: PerformanceRating) => {
     if (!currentItem) return
@@ -67,7 +149,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
 
     // Move to next item
     const remainingItems = reviewItems.filter(item => item.id !== currentItem.id)
-    
+
     if (remainingItems.length > 0) {
       setCurrentItem(remainingItems[0])
       setShowAnswer(false)
@@ -75,7 +157,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
       // Session complete
       const timeSpent = (Date.now() - sessionStartTime) / 1000
       const averageRating = newStats.ratings.reduce((a, b) => a + b, 0) / newStats.ratings.length
-      
+
       onSessionComplete({
         totalReviewed: newStats.reviewed,
         correctAnswers: newStats.correct,
@@ -116,7 +198,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
         {!showAnswer ? (
           <div className="reveal-section">
             <p>Think of the Spanish translation, then reveal the answer.</p>
-            <button 
+            <button
               onClick={() => setShowAnswer(true)}
               className="reveal-btn"
             >
@@ -132,25 +214,25 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
             <div className="rating-buttons">
               <p>How well did you remember this?</p>
               <div className="rating-grid">
-                <button 
+                <button
                   onClick={() => handleRating(PerformanceRating.AGAIN)}
                   className="rating-btn again"
                 >
                   😵 Again
                 </button>
-                <button 
+                <button
                   onClick={() => handleRating(PerformanceRating.HARD)}
                   className="rating-btn hard"
                 >
                   😅 Hard
                 </button>
-                <button 
+                <button
                   onClick={() => handleRating(PerformanceRating.GOOD)}
                   className="rating-btn good"
                 >
                   😊 Good
                 </button>
-                <button 
+                <button
                   onClick={() => handleRating(PerformanceRating.EASY)}
                   className="rating-btn easy"
                 >

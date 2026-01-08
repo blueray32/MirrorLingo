@@ -1,109 +1,170 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { usePhrasesApi } from '../hooks/usePhrasesApi';
+
+// Web Speech API types
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
 
 interface BackgroundRecorderProps {
+  userId: string;
   onPhraseDetected: (phrase: string, confidence: number) => void;
+  onAnalysisComplete?: (data: { phrases: import('../types/phrases').Phrase[], profile: import('../types/phrases').IdiolectProfile }) => void;
   isActive: boolean;
 }
 
 export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
+  userId,
   onPhraseDetected,
+  onAnalysisComplete,
   isActive
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [detectedPhrases, setDetectedPhrases] = useState<string[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { submitPhrases, isLoading } = usePhrasesApi(userId);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
+  const speechRecognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   // Voice Activity Detection parameters
   const SILENCE_THRESHOLD = 0.01; // Audio level threshold for silence
-  const SILENCE_DURATION = 2000; // 2 seconds of silence to trigger phrase end
-  const MIN_PHRASE_DURATION = 1000; // Minimum 1 second for a valid phrase
+
+  // Initialize Web Speech API for real transcription - defined BEFORE startListening
+  const initSpeechRecognition = useCallback((): SpeechRecognitionInstance | null => {
+    const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionConstructor) {
+      console.warn('Speech Recognition not supported in this browser');
+      return null;
+    }
+
+    const recognition: SpeechRecognitionInstance = new SpeechRecognitionConstructor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal) {
+        const transcript = lastResult[0].transcript.trim();
+        const confidence = lastResult[0].confidence;
+
+        if (transcript.length > 5) { // Filter out very short utterances
+          setDetectedPhrases(prev => {
+            const newPhrases = [...prev, transcript];
+            return newPhrases.slice(-10); // Keep last 10 phrases
+          });
+          onPhraseDetected(transcript, confidence);
+        }
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      if (event.error !== 'no-speech' && isActive) {
+        // Try to restart on errors other than no-speech
+        setTimeout(() => {
+          if (speechRecognitionRef.current && isActive) {
+            try {
+              speechRecognitionRef.current.start();
+            } catch (e) {
+              // Already started
+            }
+          }
+        }, 1000);
+      }
+    };
+
+    recognition.onend = () => {
+      // Restart if still active
+      if (isActive && speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.start();
+        } catch (e) {
+          // Already started
+        }
+      }
+    };
+
+    return recognition;
+  }, [isActive, onPhraseDetected]);
 
   const startListening = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 44100
-        } 
+        }
       });
 
-      // Set up audio context for voice activity detection
+      // Set up audio context for voice activity detection (visual feedback)
       audioContextRef.current = new AudioContext();
       analyserRef.current = audioContextRef.current.createAnalyser();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
       analyserRef.current.fftSize = 256;
 
-      // Set up media recorder for continuous recording
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-
-      recordingChunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordingChunksRef.current.push(event.data);
+      // Initialize Web Speech API for transcription
+      speechRecognitionRef.current = initSpeechRecognition();
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.start();
+        } catch (e) {
+          console.error('Failed to start speech recognition:', e);
         }
-      };
+      }
 
-      mediaRecorderRef.current.onstop = () => {
-        if (recordingChunksRef.current.length > 0) {
-          const audioBlob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
-          processAudioChunk(audioBlob);
-          recordingChunksRef.current = [];
-        }
-      };
-
-      // Start recording in chunks
-      mediaRecorderRef.current.start(1000); // 1-second chunks
       setIsListening(true);
 
-      // Start voice activity detection
+      // Visual audio level detection (for UI feedback only)
       const detectVoiceActivity = () => {
         if (analyserRef.current && isActive) {
           const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
           analyserRef.current.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
           const level = average / 255;
-          
-          setAudioLevel(level);
 
-          // Voice activity detection
-          if (level > SILENCE_THRESHOLD) {
-            // Voice detected - clear silence timeout
-            if (silenceTimeoutRef.current) {
-              clearTimeout(silenceTimeoutRef.current);
-              silenceTimeoutRef.current = null;
-            }
-          } else {
-            // Silence detected - start timeout if not already started
-            if (!silenceTimeoutRef.current) {
-              silenceTimeoutRef.current = setTimeout(() => {
-                // End of phrase detected
-                if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-                  mediaRecorderRef.current.stop();
-                  // Restart recording for next phrase
-                  setTimeout(() => {
-                    if (mediaRecorderRef.current && isActive) {
-                      mediaRecorderRef.current.start(1000);
-                    }
-                  }, 100);
-                }
-                silenceTimeoutRef.current = null;
-              }, SILENCE_DURATION);
-            }
-          }
+          setAudioLevel(level);
         }
-        
+
         if (isActive) {
           animationRef.current = requestAnimationFrame(detectVoiceActivity);
         }
@@ -114,21 +175,35 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
     } catch (error) {
       console.error('Error starting background recording:', error);
     }
-  }, [isActive]);
+  }, [isActive, initSpeechRecognition]);
 
   const stopListening = useCallback(() => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
+    // Stop speech recognition
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch (e) {
+        // Already stopped
+      }
+      speechRecognitionRef.current = null;
     }
-    
+
+    if (mediaRecorderRef.current) {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        // Already stopped
+      }
+    }
+
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
     }
-    
+
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
     }
-    
+
     if (audioContextRef.current) {
       audioContextRef.current.close();
     }
@@ -137,26 +212,25 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
     setAudioLevel(0);
   }, []);
 
-  // Process audio chunk (mock transcription for demo)
-  const processAudioChunk = useCallback(async (audioBlob: Blob) => {
-    // In a real implementation, this would send to transcription service
-    // For demo, we'll simulate phrase detection
-    if (audioBlob.size > 1000) { // Only process chunks with actual audio
-      const mockPhrases = [
-        "I need to finish this project by tomorrow",
-        "Can you help me with this task?",
-        "Let me think about that for a moment",
-        "That sounds like a great idea",
-        "I'm not sure about this approach"
-      ];
-      
-      const randomPhrase = mockPhrases[Math.floor(Math.random() * mockPhrases.length)];
-      const confidence = 0.7 + Math.random() * 0.3; // Random confidence 0.7-1.0
-      
-      setDetectedPhrases(prev => [...prev.slice(-4), randomPhrase]); // Keep last 5
-      onPhraseDetected(randomPhrase, confidence);
+  // Analyze collected phrases
+  const handleAnalyzeNow = useCallback(async () => {
+    if (detectedPhrases.length === 0) return;
+
+    setIsAnalyzing(true);
+    try {
+      const result = await submitPhrases(detectedPhrases);
+      if (result && onAnalysisComplete) {
+        onAnalysisComplete(result);
+      }
+    } finally {
+      setIsAnalyzing(false);
     }
-  }, [onPhraseDetected]);
+  }, [detectedPhrases, submitPhrases, onAnalysisComplete]);
+
+  // Clear collected phrases
+  const handleClearPhrases = useCallback(() => {
+    setDetectedPhrases([]);
+  }, []);
 
   // Effect to start/stop listening based on isActive
   useEffect(() => {
@@ -185,11 +259,11 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
           <div className={`pulse ${isListening ? 'active' : ''}`} />
           <span>{isListening ? 'Listening...' : 'Initializing...'}</span>
         </div>
-        
+
         <div className="audio-level-mini">
-          <div 
+          <div
             className="level-bar"
-            style={{ 
+            style={{
               width: `${Math.max(5, audioLevel * 100)}%`,
               backgroundColor: audioLevel > SILENCE_THRESHOLD ? '#4299e1' : '#e2e8f0'
             }}
@@ -199,14 +273,35 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
 
       {detectedPhrases.length > 0 && (
         <div className="detected-phrases">
-          <h4>Recently Detected:</h4>
+          <div className="phrases-header">
+            <h4>Detected Phrases ({detectedPhrases.length}):</h4>
+            <button
+              onClick={handleClearPhrases}
+              className="clear-btn"
+              title="Clear all phrases"
+            >
+              Clear
+            </button>
+          </div>
           <div className="phrase-list">
-            {detectedPhrases.slice(-3).map((phrase, index) => (
+            {detectedPhrases.slice(-5).map((phrase, index) => (
               <div key={index} className="detected-phrase">
                 "{phrase}"
               </div>
             ))}
           </div>
+          {detectedPhrases.length >= 3 && (
+            <button
+              onClick={handleAnalyzeNow}
+              className="analyze-btn"
+              disabled={isAnalyzing || isLoading}
+            >
+              {isAnalyzing || isLoading ? 'Analyzing...' : `Analyze ${detectedPhrases.length} Phrases`}
+            </button>
+          )}
+          {detectedPhrases.length < 3 && (
+            <p className="hint-text">Keep talking! Need at least 3 phrases to analyze.</p>
+          )}
         </div>
       )}
 
@@ -286,19 +381,44 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
           padding-top: 0.75rem;
         }
 
+        .phrases-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+
         .detected-phrases h4 {
           font-size: 0.75rem;
           font-weight: 600;
           color: #718096;
-          margin-bottom: 0.5rem;
+          margin: 0;
           text-transform: uppercase;
           letter-spacing: 0.05em;
+        }
+
+        .clear-btn {
+          font-size: 0.65rem;
+          padding: 0.2rem 0.5rem;
+          background: #e2e8f0;
+          color: #718096;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .clear-btn:hover {
+          background: #cbd5e0;
+          color: #4a5568;
         }
 
         .phrase-list {
           display: flex;
           flex-direction: column;
           gap: 0.25rem;
+          max-height: 150px;
+          overflow-y: auto;
         }
 
         .detected-phrase {
@@ -308,6 +428,38 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
           background: #f8fafc;
           border-radius: 6px;
           border-left: 2px solid #4299e1;
+        }
+
+        .analyze-btn {
+          width: 100%;
+          margin-top: 0.75rem;
+          padding: 0.6rem 1rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+          background: linear-gradient(135deg, #48bb78, #38a169);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .analyze-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+        }
+
+        .analyze-btn:disabled {
+          background: #a0aec0;
+          cursor: not-allowed;
+        }
+
+        .hint-text {
+          font-size: 0.7rem;
+          color: #a0aec0;
+          text-align: center;
+          margin-top: 0.5rem;
+          font-style: italic;
         }
 
         @media (max-width: 768px) {

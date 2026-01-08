@@ -1,21 +1,16 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { TranscriptionService } from '../services/transcriptionService';
-
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,x-user-id',
-  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
-};
+import { getUserIdFromEvent, getCorsHeaders } from '../utils/auth';
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  console.log('Audio processing event:', JSON.stringify(event, null, 2));
+  const corsHeaders = getCorsHeaders(event);
 
   try {
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
       return {
         statusCode: 200,
-        headers: CORS_HEADERS,
+        headers: corsHeaders,
         body: ''
       };
     }
@@ -23,35 +18,45 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (event.httpMethod !== 'POST') {
       return {
         statusCode: 405,
-        headers: CORS_HEADERS,
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Method not allowed' })
       };
     }
 
-    const userId = event.headers['x-user-id'];
+    const userId = getUserIdFromEvent(event);
     if (!userId) {
       return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'User ID required' })
+        statusCode: 401,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'User authentication required' })
       };
     }
-    
+
     if (!event.body) {
       return {
         statusCode: 400,
-        headers: CORS_HEADERS,
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Audio data required' })
       };
     }
 
-    const body = JSON.parse(event.body);
+    let body;
+    try {
+      body = JSON.parse(event.body);
+    } catch {
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Invalid JSON in request body' })
+      };
+    }
+
     const { audioData, contentType, duration } = body;
 
     if (!audioData) {
       return {
         statusCode: 400,
-        headers: CORS_HEADERS,
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Audio data required' })
       };
     }
@@ -65,7 +70,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     return {
       statusCode: 200,
-      headers: CORS_HEADERS,
+      headers: corsHeaders,
       body: JSON.stringify({
         success: true,
         data: result
@@ -74,13 +79,13 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
   } catch (error) {
     console.error('Error processing audio:', error);
-    
+
     return {
       statusCode: 500,
-      headers: CORS_HEADERS,
+      headers: corsHeaders,
       body: JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to process audio recording'
+        error: 'Failed to process audio recording'
       })
     };
   }

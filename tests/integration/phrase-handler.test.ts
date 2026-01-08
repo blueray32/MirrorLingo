@@ -66,7 +66,7 @@ describe('Phrase Handler Integration', () => {
 
     const body = JSON.parse(result.body)
     expect(body.success).toBe(false)
-    expect(body.error).toContain('Unauthorized')
+    expect(body.error).toContain('User authentication required')
   })
 
   it('should handle CORS preflight', async () => {
@@ -78,6 +78,6 @@ describe('Phrase Handler Integration', () => {
     const result = await handler(optionsEvent as APIGatewayProxyEvent, mockContext)
 
     expect(result.statusCode).toBe(200)
-    expect(result.headers).toHaveProperty('Access-Control-Allow-Origin', '*')
+    expect(result.headers).toHaveProperty('Access-Control-Allow-Origin', 'http://localhost:3000')
   })
 })

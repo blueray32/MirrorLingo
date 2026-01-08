@@ -1,18 +1,21 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ConversationService } from '../services/conversationService';
+import { getUserIdFromEvent, getCorsHeaders } from '../utils/auth';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-user-id',
-  'Access-Control-Allow-Methods': 'POST,OPTIONS'
-};
+// Store CORS headers at handler level for use in createResponse
+let currentCorsHeaders: Record<string, string>;
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+  currentCorsHeaders = getCorsHeaders(event);
+
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+    return { statusCode: 200, headers: currentCorsHeaders, body: '' };
   }
 
-  const userId = event.headers['x-user-id'] || 'anonymous';
+  const userId = getUserIdFromEvent(event);
+  if (!userId) {
+    return createResponse(401, { error: 'User authentication required' });
+  }
 
   try {
     if (!event.body) {
@@ -23,7 +26,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     try {
       body = JSON.parse(event.body);
     } catch {
-      return createResponse(400, { error: 'Invalid JSON' });
+      return createResponse(400, { error: 'Invalid JSON in request body' });
     }
 
     const { message, topic, messageHistory, userIdiolect } = body;
@@ -49,7 +52,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 function createResponse(statusCode: number, body: object): APIGatewayProxyResult {
   return {
     statusCode,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...currentCorsHeaders, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   };
 }

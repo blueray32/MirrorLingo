@@ -15,12 +15,17 @@
  * ```
  */
 import { useState, useCallback } from 'react';
-import { 
-  CreatePhrasesRequest, 
-  CreatePhrasesResponse, 
+import {
+  CreatePhrasesRequest,
+  CreatePhrasesResponse,
   GetPhrasesResponse,
   Phrase,
-  IdiolectProfile 
+  IdiolectProfile,
+  ToneLevel,
+  FormalityLevel,
+  PatternType,
+  IntentCategory,
+  LanguagePattern
 } from '../types/phrases';
 
 // API configuration
@@ -39,14 +44,14 @@ interface UsePhrasesApiReturn {
   phrases: Phrase[];
   /** User's idiolect profile from analysis */
   profile: IdiolectProfile | null;
-  
+
   // Actions
-  submitPhrases: (phrases: string[]) => Promise<boolean>;
+  submitPhrases: (phrases: string[]) => Promise<{ phrases: Phrase[], profile: IdiolectProfile } | null>;
   loadPhrases: () => Promise<boolean>;
   clearError: () => void;
 }
 
-export const usePhrasesApi = (): UsePhrasesApiReturn => {
+export const usePhrasesApi = (userId: string): UsePhrasesApiReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phrases, setPhrases] = useState<Phrase[]>([]);
@@ -58,7 +63,7 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
   }, []);
 
   // Submit phrases for analysis
-  const submitPhrases = useCallback(async (phrasesInput: string[]): Promise<boolean> => {
+  const submitPhrases = useCallback(async (phrasesInput: string[]): Promise<{ phrases: Phrase[], profile: IdiolectProfile } | null> => {
     setIsLoading(true);
     setError(null);
 
@@ -67,28 +72,34 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
       await new Promise(resolve => setTimeout(resolve, 2000)); // Realistic loading time
 
       const cleanPhrases = phrasesInput.filter(p => p.trim().length > 0);
-      
-      // Sophisticated mock analysis based on actual phrases
-      const mockPhrases: Phrase[] = cleanPhrases.map((text, index) => ({
-        id: `phrase-${Date.now()}-${index}`,
-        text,
-        intent: detectIntent(text),
-        confidence: 0.85 + Math.random() * 0.1,
-        createdAt: new Date().toISOString()
-      }));
+      // Make API call to backend
+      const response = await fetch('/api/phrases', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
+        body: JSON.stringify({ phrases: cleanPhrases })
+      });
 
-      const mockProfile: IdiolectProfile = generateSophisticatedProfile(cleanPhrases);
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
 
-      setPhrases(mockPhrases);
-      setProfile(mockProfile);
+      const data: CreatePhrasesResponse = await response.json();
 
-      return true;
+      if (!data.success || !data.data) {
+        throw new Error(data.error || 'Failed to analyze phrases');
+      }
+
+      setPhrases(data.data.phrases);
+      setProfile(data.data.profile);
+
+      return { phrases: data.data.phrases, profile: data.data.profile };
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error submitting phrases:', err);
-      return false;
+      setError('Failed to analyze phrases');
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -100,14 +111,11 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/phrases`, {
+      const response = await fetch('/api/phrases', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // TODO: Add Authorization header with Cognito JWT
-          // 'Authorization': `Bearer ${authToken}`,
-          // For development, use test user ID
-          'x-user-id': 'test-user-123'
+          'x-user-id': userId
         }
       });
 
@@ -117,21 +125,17 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
 
       const result: GetPhrasesResponse = await response.json();
 
-      if (!result.success) {
+      if (!result.success || !result.data) {
         throw new Error(result.error || 'Failed to load phrases');
       }
 
-      if (result.data) {
-        setPhrases(result.data.phrases || []);
-        setProfile(result.data.profile || null);
-      }
+      setPhrases(result.data.phrases || []);
+      setProfile(result.data.profile || null);
 
       return true;
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error loading phrases:', err);
+      setError('Failed to load phrases');
       return false;
     } finally {
       setIsLoading(false);
@@ -154,21 +158,21 @@ export const usePhraseValidation = () => {
   const validatePhrases = useCallback((phrases: string[]): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];
     const validPhrases = phrases.filter(p => p.trim().length > 0);
-    
+
     if (validPhrases.length < 1) {
       errors.push('Please enter at least 1 phrase');
     }
-    
+
     if (validPhrases.length > 10) {
       errors.push('Please enter no more than 10 phrases');
     }
-    
+
     validPhrases.forEach((phrase, index) => {
       if (phrase.length > 500) {
         errors.push(`Phrase ${index + 1} is too long (max 500 characters)`);
       }
     });
-    
+
     return { valid: errors.length === 0, errors };
   }, []);
 
@@ -178,7 +182,7 @@ export const usePhraseValidation = () => {
 // Enhanced mock analysis functions
 const detectIntent = (phrase: string): string => {
   const text = phrase.toLowerCase();
-  
+
   if (text.includes('work') || text.includes('meeting') || text.includes('project') || text.includes('deadline') || text.includes('client')) {
     return 'work';
   }
@@ -194,43 +198,83 @@ const detectIntent = (phrase: string): string => {
   if (text.includes('please') || text.includes('could you') || text.includes('would you')) {
     return 'polite_request';
   }
-  
+
   return 'casual';
 };
 
 const generateSophisticatedProfile = (phrases: string[]): IdiolectProfile => {
   const allText = phrases.join(' ').toLowerCase();
-  
+
   // Analyze contractions
   const contractionCount = (allText.match(/\b(don't|won't|can't|i'm|you're|it's|that's|we're|they're)\b/g) || []).length;
   const contractionRate = contractionCount / phrases.length;
-  
+
   // Analyze filler words
   const fillerCount = (allText.match(/\b(um|uh|like|you know|actually|basically|literally)\b/g) || []).length;
-  
+
   // Analyze politeness markers
   const politenessCount = (allText.match(/\b(please|thank you|sorry|excuse me|could you|would you)\b/g) || []).length;
-  
+
   // Determine tone and formality
-  const tone = politenessCount > phrases.length * 0.3 ? 'polite' : 
-               contractionRate > 0.5 ? 'casual' : 'neutral';
-  
-  const formality = contractionRate < 0.2 && politenessCount > 0 ? 'formal' :
-                   contractionRate > 0.7 ? 'informal' : 'neutral';
+  const overallTone: ToneLevel = politenessCount > phrases.length * 0.3 ? ToneLevel.POLITE :
+    contractionRate > 0.5 ? ToneLevel.CASUAL : ToneLevel.NEUTRAL;
+
+  const overallFormality: FormalityLevel = contractionRate < 0.2 && politenessCount > 0 ? FormalityLevel.FORMAL :
+    contractionRate > 0.7 ? FormalityLevel.INFORMAL : FormalityLevel.SEMI_FORMAL;
+
+  // Build patterns array with proper LanguagePattern structure
+  const commonPatterns: LanguagePattern[] = [];
+
+  if (contractionRate > 0.3) {
+    commonPatterns.push({
+      type: PatternType.CONTRACTIONS,
+      description: 'Uses contractions frequently',
+      examples: ["don't", "won't", "can't"],
+      frequency: contractionRate
+    });
+  }
+
+  if (fillerCount > 0) {
+    commonPatterns.push({
+      type: PatternType.FILLER_WORDS,
+      description: 'Uses filler words',
+      examples: ['um', 'like', 'you know'],
+      frequency: fillerCount / phrases.length
+    });
+  }
+
+  if (politenessCount > 0) {
+    commonPatterns.push({
+      type: PatternType.POLITENESS_MARKERS,
+      description: 'Polite communication style',
+      examples: ['please', 'thank you', 'sorry'],
+      frequency: politenessCount / phrases.length
+    });
+  }
+
+  if (phrases.some(p => p.includes('?'))) {
+    commonPatterns.push({
+      type: PatternType.QUESTION_STYLE,
+      description: 'Asks questions often',
+      examples: [],
+      frequency: 0.5
+    });
+  }
+
+  commonPatterns.push({
+    type: PatternType.SENTENCE_LENGTH,
+    description: phrases.some(p => p.length > 50) ? 'Tends to use longer sentences' : 'Prefers concise communication',
+    examples: [],
+    frequency: 0.5
+  });
 
   return {
     userId: 'test-user-123',
-    tone,
-    formality,
-    patterns: [
-      ...(contractionRate > 0.3 ? ['Uses contractions frequently'] : []),
-      ...(fillerCount > 0 ? ['Uses filler words'] : []),
-      ...(politenessCount > 0 ? ['Polite communication style'] : []),
-      ...(phrases.some(p => p.includes('?')) ? ['Asks questions often'] : []),
-      ...(phrases.some(p => p.length > 50) ? ['Tends to use longer sentences'] : ['Prefers concise communication'])
-    ],
-    confidence: 0.87 + Math.random() * 0.1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    overallTone,
+    overallFormality,
+    commonPatterns,
+    preferredIntents: [IntentCategory.CASUAL, IntentCategory.WORK],
+    analysisCount: 1,
+    lastUpdated: new Date().toISOString()
   };
 };

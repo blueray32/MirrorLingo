@@ -11,7 +11,7 @@ interface UseConversationApiReturn {
   clearConversation: () => void;
 }
 
-export const useConversationApi = (): UseConversationApiReturn => {
+export const useConversationApi = (userId: string): UseConversationApiReturn => {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,14 +59,34 @@ export const useConversationApi = (): UseConversationApiReturn => {
     setError(null);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const response = await fetch('/api/conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId
+        },
+        body: JSON.stringify({
+          message: content,
+          topic: currentTopic,
+          messageHistory: messagesRef.current.slice(-10), // Last 10 messages for context
+          userIdiolect: null
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const result = await response.json();
       
-      const mockResponse = generateMockResponse(content, currentTopic, messagesRef.current);
-      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to get response');
+      }
+
       const assistantMessage: ConversationMessage = {
         id: generateId(),
         role: 'assistant',
-        content: mockResponse.message,
+        content: result.data.response,
         timestamp: new Date()
       };
 
@@ -75,20 +95,6 @@ export const useConversationApi = (): UseConversationApiReturn => {
         messagesRef.current = updated;
         return updated;
       });
-
-      if (mockResponse.correction) {
-        const correctionMessage: ConversationMessage = {
-          id: generateId(),
-          role: 'assistant',
-          content: `💡 *Pequeña corrección*: "${mockResponse.correction.original}" → "${mockResponse.correction.corrected}" (${mockResponse.correction.explanation})`,
-          timestamp: new Date()
-        };
-        setMessages(prev => {
-          const updated = [...prev, correctionMessage];
-          messagesRef.current = updated;
-          return updated;
-        });
-      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');

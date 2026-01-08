@@ -1,0 +1,882 @@
+
+> mirrorlingo-frontend@0.1.0 dev
+> next dev -p 3002
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3002
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1178ms
+ ○ Compiling / ...
+ ✓ Compiled / in 582ms (297 modules)
+Do not add <script> tags using next/head (see inline <script>). Use next/script instead. 
+See more info here: https://nextjs.org/docs/messages/no-script-tags-in-head-component
+ GET / 200 in 649ms
+ GET / 200 in 5ms
+ ✓ Compiled /_error in 31ms (299 modules)
+ GET /icon-192.png 404 in 37ms
+ GET /icon-192.png 404 in 3ms
+ ✓ Compiled /api/phrases in 68ms (83 modules)
+ POST /api/phrases 200 in 1587ms
+ ✓ Compiled /api/translations in 63ms (85 modules)
+Translating: "Could you take a look at this?" -> expanded: "Could you take a look at this?"
+Translating: "No worries, take your time" -> expanded: "No worries, take your time"
+Successfully translated 2 phrases
+ POST /api/translations 200 in 1056ms
+ POST /api/phrases 200 in 1511ms
+Translating: "Could you take a look at this?" -> expanded: "Could you take a look at this?"
+Translating: "No worries, take your time" -> expanded: "No worries, take your time"
+Translating: "Could you take a look at this?" -> expanded: "Could you take a look at this?"
+Translating: "No worries, take your time" -> expanded: "No worries, take your time"
+Successfully translated 2 phrases
+ POST /api/translations 200 in 769ms
+Successfully translated 2 phrases
+ POST /api/translations 200 in 869ms
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3002
+  - Environments: .env.local
+  - Experiments (use with caution):
+    · optimizeCss
+
+ ✓ Starting...
+ ✓ Ready in 1303ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled / in 499ms (299 modules)
+ ⨯ Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js
+- /Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/server/pages/_document.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/build/utils.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/hot-middleware.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/hot-reloader-webpack.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.critters (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:19856)
+    at r (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:20380)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15039
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/server/pages/_document.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/build/utils.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/hot-middleware.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/hot-reloader-webpack.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /_next/static/chunks/pages/_app.js 500 in 1495ms
+ GET /_next/static/chunks/pages/_app.js 500 in 24ms
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /_next/static/chunks/react-refresh.js 500 in 1507ms
+ GET /_next/static/chunks/react-refresh.js 500 in 25ms
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /_next/static/chunks/main.js 500 in 1506ms
+ GET /_next/static/chunks/main.js 500 in 25ms
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /_next/static/chunks/webpack.js 500 in 1548ms
+ GET /_next/static/chunks/webpack.js 500 in 5ms
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:378:13)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ ⨯ TypeError: r(...) is not a constructor
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15035
+    at u (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:6:15286)
+    at async e8 (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/compiled/next-server/pages.runtime.dev.js:28:329)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderErrorToResponseImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2182:24)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13)
+Error: Cannot find module 'critters'
+Require stack:
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js
+- /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1420:15)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1058:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1063:22)
+    at Module._load (node:internal/modules/cjs/loader:1226:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1503:12)
+    at mod.require (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:147:30
+    at postProcessHTML (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js:165:29)
+    at async renderToHTMLImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js:1016:27)
+    at async doRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1414:30)
+    at async cacheEntry.responseCache.get.routeKind (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:1496:28)
+    at async pipe.req.req (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:2056:30)
+    at async DevServer.pipeImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/base-server.js:922:25)
+    at async /Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:179:21)
+    at async requestHandlerImpl (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/router-server.js:395:24)
+    at async Server.requestListener (/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/post-process.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/render.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/module.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/future/route-modules/pages/builtin/_error.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/load-default-error-components.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/dev/next-dev-server.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/next.js',
+    '/Users/ciarancox/dynamous-kiro-hackathon/node_modules/next/dist/server/lib/start-server.js'
+  ]
+}
+ GET /icon-192.png 500 in 9ms
+ GET /icon-192.png 500 in 4ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz_' -> '/Users/ciarancox/dynamous-kiro-hackathon/frontend/.next/cache/webpack/client-development-fallback/0.pack.gz'
+ ⚠ Found a change in next.config.js. Restarting the server to apply the changes...
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3002
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1102ms

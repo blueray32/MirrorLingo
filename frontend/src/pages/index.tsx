@@ -1,48 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Head from 'next/head';
 import { PhraseInput } from '../components/PhraseInput';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BackgroundRecorder } from '../components/BackgroundRecorder';
 import { IdiolectAnalysis } from '../components/IdiolectAnalysis';
-import { SpanishTranslations } from '../components/SpanishTranslations';
-import { ConversationPractice } from '../components/ConversationPractice';
 import { usePhrasesApi } from '../hooks/usePhrasesApi';
+
+// Lazy load heavy components
+const SpanishTranslations = lazy(() => import('../components/SpanishTranslations').then(m => ({ default: m.SpanishTranslations })));
+const ConversationPractice = lazy(() => import('../components/ConversationPractice').then(m => ({ default: m.ConversationPractice })));
+const PracticeSession = lazy(() => import('../components/PracticeSession').then(m => ({ default: m.PracticeSession })));
+const TrainingMixer = lazy(() => import('../components/TrainingMixer').then(m => ({ default: m.TrainingMixer })));
+
+// Demo user ID - in production, get from auth context
+const DEMO_USER_ID = 'demo-user-123';
 
 export default function Home() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [showTranslations, setShowTranslations] = useState(false);
   const [showConversation, setShowConversation] = useState(false);
+  const [showPractice, setShowPractice] = useState(false);
+  const [showMixer, setShowMixer] = useState(false);
   const [inputMode, setInputMode] = useState<'voice' | 'text' | 'background'>('voice');
   const [backgroundRecording, setBackgroundRecording] = useState(false);
-  const { phrases, profile, loadPhrases, isLoading } = usePhrasesApi();
+  const { phrases, profile, loadPhrases, isLoading } = usePhrasesApi(DEMO_USER_ID);
 
   // Load existing phrases on component mount
   useEffect(() => {
-    loadPhrases().then((success) => {
-      if (success && phrases.length > 0) {
-        setShowAnalysis(true);
-      }
-    });
-  }, []);
+    loadPhrases();
+  }, [loadPhrases]);
+
+  // Show analysis when phrases are loaded
+  useEffect(() => {
+    if (phrases.length > 0) {
+      setShowAnalysis(true);
+    }
+  }, [phrases]);
 
   const handleAnalysisComplete = () => {
     setShowAnalysis(true);
   };
 
   const handleRecordingComplete = async (audioBlob: Blob, duration: number) => {
-    console.log('Recording completed:', { size: audioBlob.size, duration });
-    // TODO: Send audio to backend for transcription and analysis
+    // Audio processing handled by useAudioApi hook
+    // Audio processing handled by useAudioApi hook
   };
 
-  const handlePhraseDetected = (phrase: string, confidence: number) => {
-    console.log('Background phrase detected:', { phrase, confidence });
-    // TODO: Add to phrases collection and trigger analysis
+  const handlePhraseDetected = (_phrase: string, _confidence: number) => {
+    // Phrase analysis handled by usePhrasesApi hook
   };
 
   const handleStartOver = () => {
     setShowAnalysis(false);
     setShowTranslations(false);
     setShowConversation(false);
+    setShowPractice(false);
+    setShowMixer(false);
     setBackgroundRecording(false);
   };
 
@@ -52,6 +65,14 @@ export default function Home() {
 
   const handleShowTranslations = () => {
     setShowTranslations(true);
+  };
+
+  const handleShowPractice = () => {
+    setShowPractice(true);
+  };
+
+  const handleShowMixer = () => {
+    setShowMixer(true);
   };
 
   return (
@@ -125,6 +146,7 @@ export default function Home() {
 
               {inputMode === 'voice' ? (
                 <VoiceRecorder 
+                  userId={DEMO_USER_ID}
                   onRecordingComplete={handleRecordingComplete}
                   onAnalysisComplete={handleAnalysisComplete}
                 />
@@ -145,19 +167,54 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <PhraseInput onAnalysisComplete={handleAnalysisComplete} />
+                <PhraseInput userId={DEMO_USER_ID} onAnalysisComplete={handleAnalysisComplete} />
               )}
+            </div>
+          ) : showMixer ? (
+            <div className="mixer-section">
+              <Suspense fallback={<div className="loading">Loading training mixer...</div>}>
+                <TrainingMixer
+                  phrases={phrases}
+                  profile={profile!}
+                  onComplete={() => setShowMixer(false)}
+                />
+              </Suspense>
+              <div className="navigation-buttons">
+                <button onClick={() => setShowMixer(false)} className="back-btn">
+                  ← Back
+                </button>
+              </div>
+            </div>
+          ) : showPractice ? (
+            <div className="practice-section">
+              <Suspense fallback={<div className="loading">Loading practice session...</div>}>
+                <PracticeSession
+                  phrases={phrases}
+                  profile={profile!}
+                  onSessionComplete={() => {
+                    setShowPractice(false);
+                  }}
+                />
+              </Suspense>
+              <div className="navigation-buttons">
+                <button onClick={() => setShowPractice(false)} className="back-btn">
+                  ← Back
+                </button>
+              </div>
             </div>
           ) : showConversation ? (
             <div className="conversation-section">
-              <ConversationPractice 
-                userProfile={profile ? {
-                  tone: profile.tone,
-                  formality: profile.formality,
-                  patterns: profile.patterns
-                } : undefined}
-                onSessionComplete={() => setShowConversation(false)}
-              />
+              <Suspense fallback={<div className="loading">Loading conversation practice...</div>}>
+                <ConversationPractice
+                  userId={DEMO_USER_ID}
+                  userProfile={profile ? {
+                    tone: String(profile.overallTone),
+                    formality: String(profile.overallFormality),
+                    patterns: profile.commonPatterns.map(p => p.description)
+                  } : undefined}
+                  onSessionComplete={() => setShowConversation(false)}
+                />
+              </Suspense>
               <div className="navigation-buttons">
                 <button onClick={() => setShowConversation(false)} className="back-btn">
                   ← Back
@@ -166,10 +223,13 @@ export default function Home() {
             </div>
           ) : showTranslations ? (
             <div className="translations-section">
-              <SpanishTranslations 
-                phrases={phrases} 
-                profile={profile!}
-              />
+              <Suspense fallback={<div className="loading">Loading Spanish translations...</div>}>
+                <SpanishTranslations 
+                  phrases={phrases} 
+                  profile={profile!}
+                  userId={DEMO_USER_ID}
+                />
+              </Suspense>
               
               <div className="navigation-buttons">
                 <button onClick={() => setShowTranslations(false)} className="back-btn">
@@ -209,12 +269,16 @@ export default function Home() {
                     <div className="step-card">
                       <h4>🔄 Spaced Practice</h4>
                       <p>Review your phrases with adaptive scheduling to build long-term memory</p>
-                      <button className="step-btn" disabled>Coming Soon</button>
+                      <button onClick={handleShowPractice} className="step-btn active">
+                        Start Practice
+                      </button>
                     </div>
                     <div className="step-card">
-                      <h4>🎓 Mistake Coaching</h4>
-                      <p>Get targeted lessons on grammar patterns specific to your speaking style</p>
-                      <button className="step-btn" disabled>Coming Soon</button>
+                      <h4>🎓 Training Mixer</h4>
+                      <p>Practice with mixed exercises generated from your own phrases</p>
+                      <button onClick={handleShowMixer} className="step-btn active">
+                        Mix It Up
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -228,9 +292,15 @@ export default function Home() {
         </footer>
 
         {/* Background Recorder - always rendered when active */}
-        <BackgroundRecorder 
+        <BackgroundRecorder
+          userId={DEMO_USER_ID}
           isActive={backgroundRecording}
           onPhraseDetected={handlePhraseDetected}
+          onAnalysisComplete={() => {
+            loadPhrases();
+            setShowAnalysis(true);
+            setBackgroundRecording(false);
+          }}
         />
       </main>
 
@@ -399,6 +469,26 @@ export default function Home() {
         .conversation-section {
           width: 100%;
           max-width: 700px;
+        }
+
+        .practice-section {
+          width: 100%;
+          max-width: 700px;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(10px);
+          border-radius: 1rem;
+          overflow: hidden;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .mixer-section {
+          width: 100%;
+          max-width: 700px;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(10px);
+          border-radius: 1rem;
+          overflow: hidden;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         }
 
         .hero-text {

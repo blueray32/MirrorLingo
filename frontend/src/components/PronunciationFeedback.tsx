@@ -48,8 +48,7 @@ export const PronunciationFeedback: React.FC<PronunciationFeedbackProps> = ({
 
       mediaRecorderRef.current.start()
       setIsRecording(true)
-    } catch (error) {
-      console.error('Error starting recording:', error)
+    } catch {
       alert('Could not access microphone')
     }
   }
