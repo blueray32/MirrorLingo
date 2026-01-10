@@ -83,7 +83,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
               <TouchableOpacity
                 style={[styles.button, styles.secondaryButton]}
-                onPress={() => navigation.navigate('Conversation')}
+                onPress={() => navigation.navigate('Conversation', { profile: undefined })}
               >
                 <Text style={styles.buttonEmoji}>🗣️</Text>
                 <Text style={styles.secondaryButtonText}>Try AI Conversation</Text>

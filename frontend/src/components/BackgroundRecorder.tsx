@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { usePhrasesApi } from '../hooks/usePhrasesApi';
 
-// Web Speech API types
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;
 }
@@ -55,24 +54,58 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { submitPhrases, isLoading } = usePhrasesApi(userId);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number | null>(null);
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingPhrasesRef = useRef<string[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isListeningRef = useRef(false);
+  const isActiveRef = useRef(isActive);
 
-  // Voice Activity Detection parameters
-  const SILENCE_THRESHOLD = 0.01; // Audio level threshold for silence
+  // Keep ref in sync with prop
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
-  // Initialize Web Speech API for real transcription - defined BEFORE startListening
+  const SILENCE_THRESHOLD = 0.01;
+  const AUTO_SAVE_DELAY = 5000; // Auto-save 5 seconds after last phrase
+
+  // Auto-save function - doesn't call onAnalysisComplete to keep recording
+  const autoSavePhrases = useCallback(async (phrases: string[], triggerComplete = false) => {
+    if (phrases.length === 0 || isLoading) return;
+    setIsAnalyzing(true);
+    try {
+      const result = await submitPhrases(phrases);
+      if (result && triggerComplete && onAnalysisComplete) {
+        onAnalysisComplete(result);
+      }
+      pendingPhrasesRef.current = []; // Clear pending after successful save
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [submitPhrases, onAnalysisComplete, isLoading]);
+
+  // Schedule auto-save when new phrase detected
+  const scheduleAutoSave = useCallback((newPhrase: string) => {
+    // Add to pending
+    if (!pendingPhrasesRef.current.includes(newPhrase)) {
+      pendingPhrasesRef.current.push(newPhrase);
+    }
+    // Clear existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    // Schedule new auto-save
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSavePhrases(pendingPhrasesRef.current);
+    }, AUTO_SAVE_DELAY);
+  }, [autoSavePhrases]);
+
   const initSpeechRecognition = useCallback((): SpeechRecognitionInstance | null => {
     const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognitionConstructor) {
-      console.warn('Speech Recognition not supported in this browser');
-      return null;
-    }
+    if (!SpeechRecognitionConstructor) return null;
 
     const recognition: SpeechRecognitionInstance = new SpeechRecognitionConstructor();
     recognition.continuous = true;
@@ -84,393 +117,235 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
       if (lastResult.isFinal) {
         const transcript = lastResult[0].transcript.trim();
         const confidence = lastResult[0].confidence;
-
-        if (transcript.length > 5) { // Filter out very short utterances
+        // Only save phrases with 3+ words that are meaningful
+        if (transcript.split(' ').length >= 3 && transcript.length > 10) {
           setDetectedPhrases(prev => {
-            const newPhrases = [...prev, transcript];
-            return newPhrases.slice(-10); // Keep last 10 phrases
+            // Avoid duplicates
+            if (prev.includes(transcript)) return prev;
+            return [...prev, transcript].slice(-20); // Keep last 20
           });
           onPhraseDetected(transcript, confidence);
+          scheduleAutoSave(transcript); // Auto-save after delay
         }
       }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error !== 'no-speech' && isActive) {
-        // Try to restart on errors other than no-speech
+      if (event.error !== 'no-speech' && isActiveRef.current) {
         setTimeout(() => {
-          if (speechRecognitionRef.current && isActive) {
-            try {
-              speechRecognitionRef.current.start();
-            } catch (e) {
-              // Already started
-            }
+          if (speechRecognitionRef.current && isActiveRef.current) {
+            try { speechRecognitionRef.current.start(); } catch (e) { }
           }
         }, 1000);
       }
     };
 
     recognition.onend = () => {
-      // Restart if still active
-      if (isActive && speechRecognitionRef.current) {
-        try {
-          speechRecognitionRef.current.start();
-        } catch (e) {
-          // Already started
-        }
+      if (isActiveRef.current && speechRecognitionRef.current) {
+        try { speechRecognitionRef.current.start(); } catch (e) { }
       }
     };
 
     return recognition;
-  }, [isActive, onPhraseDetected]);
+  }, [onPhraseDetected, scheduleAutoSave]);
 
   const startListening = useCallback(async () => {
+    console.log('startListening called, current state:', { isListeningRef: isListeningRef.current });
+
+    // Set listening state immediately for UI feedback
+    isListeningRef.current = true;
+    setIsListening(true);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        }
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
       });
+      console.log('Got media stream');
+      streamRef.current = stream;
 
-      // Set up audio context for voice activity detection (visual feedback)
       audioContextRef.current = new AudioContext();
       analyserRef.current = audioContextRef.current.createAnalyser();
       const source = audioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
       analyserRef.current.fftSize = 256;
 
-      // Initialize Web Speech API for transcription
       speechRecognitionRef.current = initSpeechRecognition();
       if (speechRecognitionRef.current) {
-        try {
-          speechRecognitionRef.current.start();
-        } catch (e) {
-          console.error('Failed to start speech recognition:', e);
-        }
+        try { speechRecognitionRef.current.start(); } catch (e) { console.log('Speech start error:', e); }
       }
 
-      setIsListening(true);
+      console.log('Now listening - state updated');
 
-      // Visual audio level detection (for UI feedback only)
       const detectVoiceActivity = () => {
-        if (analyserRef.current && isActive) {
+        if (analyserRef.current) {
           const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
           analyserRef.current.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          const level = average / 255;
-
-          setAudioLevel(level);
+          setAudioLevel(average / 255);
         }
-
-        if (isActive) {
-          animationRef.current = requestAnimationFrame(detectVoiceActivity);
-        }
+        animationRef.current = requestAnimationFrame(detectVoiceActivity);
       };
 
       detectVoiceActivity();
-
     } catch (error) {
-      console.error('Error starting background recording:', error);
+      console.error('Core sensor initialization failure:', error);
+      // Reset state on error
+      isListeningRef.current = false;
+      setIsListening(false);
     }
-  }, [isActive, initSpeechRecognition]);
+  }, [initSpeechRecognition]);
 
   const stopListening = useCallback(() => {
-    // Stop speech recognition
+    if (!isListeningRef.current) return; // Not listening
+    console.log('stopListening called');
+    // Clear auto-save timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    // Save any pending phrases on stop
+    if (pendingPhrasesRef.current.length > 0) {
+      autoSavePhrases(pendingPhrasesRef.current, true);
+    }
     if (speechRecognitionRef.current) {
-      try {
-        speechRecognitionRef.current.stop();
-      } catch (e) {
-        // Already stopped
-      }
+      try { speechRecognitionRef.current.stop(); } catch (e) { }
       speechRecognitionRef.current = null;
     }
-
-    if (mediaRecorderRef.current) {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (e) {
-        // Already stopped
-      }
-    }
-
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
-
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-    }
-
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
     if (audioContextRef.current) {
       audioContextRef.current.close();
+      audioContextRef.current = null;
     }
-
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    isListeningRef.current = false;
     setIsListening(false);
     setAudioLevel(0);
-  }, []);
+  }, [autoSavePhrases]);
 
-  // Analyze collected phrases
   const handleAnalyzeNow = useCallback(async () => {
     if (detectedPhrases.length === 0) return;
-
+    // Clear any pending auto-save
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     setIsAnalyzing(true);
     try {
       const result = await submitPhrases(detectedPhrases);
-      if (result && onAnalysisComplete) {
-        onAnalysisComplete(result);
-      }
+      if (result && onAnalysisComplete) onAnalysisComplete(result);
+      pendingPhrasesRef.current = [];
+      setDetectedPhrases([]); // Clear after manual analyze
     } finally {
       setIsAnalyzing(false);
     }
   }, [detectedPhrases, submitPhrases, onAnalysisComplete]);
 
-  // Clear collected phrases
-  const handleClearPhrases = useCallback(() => {
-    setDetectedPhrases([]);
-  }, []);
-
-  // Effect to start/stop listening based on isActive
   useEffect(() => {
-    if (isActive && !isListening) {
-      startListening();
-    } else if (!isActive && isListening) {
+    console.log('BackgroundRecorder effect:', { isActive, isListeningRef: isListeningRef.current });
+    if (isActive) {
+      // Reset ref in case of stale state
+      if (!isListeningRef.current) {
+        startListening();
+      }
+    } else {
       stopListening();
     }
-  }, [isActive, isListening, startListening, stopListening]);
+  }, [isActive, startListening, stopListening]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('BackgroundRecorder unmounting');
       stopListening();
     };
   }, [stopListening]);
 
-  if (!isActive) {
-    return null;
-  }
+  if (!isActive) return null;
 
   return (
-    <div className="background-recorder">
-      <div className="recorder-status">
-        <div className="status-indicator">
-          <div className={`pulse ${isListening ? 'active' : ''}`} />
-          <span>{isListening ? 'Listening...' : 'Initializing...'}</span>
+    <div className="background-recorder-widget glass-card fade-in">
+      <div className="widget-header">
+        <div className="status-meta">
+          <div className={`status-orb ${isListening ? 'active' : ''}`} />
+          <span className="status-text">{isListening ? 'Listening' : 'Ready'}</span>
         </div>
-
-        <div className="audio-level-mini">
-          <div
-            className="level-bar"
-            style={{
-              width: `${Math.max(5, audioLevel * 100)}%`,
-              backgroundColor: audioLevel > SILENCE_THRESHOLD ? '#4299e1' : '#e2e8f0'
-            }}
-          />
+        <div className="level-monitor">
+          <div className="level-fill" style={{ width: `${Math.max(5, audioLevel * 100)}%`, backgroundColor: audioLevel > SILENCE_THRESHOLD ? 'var(--primary)' : 'rgba(255,255,255,0.1)' }}></div>
         </div>
       </div>
 
       {detectedPhrases.length > 0 && (
-        <div className="detected-phrases">
-          <div className="phrases-header">
-            <h4>Detected Phrases ({detectedPhrases.length}):</h4>
-            <button
-              onClick={handleClearPhrases}
-              className="clear-btn"
-              title="Clear all phrases"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="phrase-list">
-            {detectedPhrases.slice(-5).map((phrase, index) => (
-              <div key={index} className="detected-phrase">
-                "{phrase}"
+        <div className="widget-discovery fade-in">
+          <header className="discovery-header">
+            <h6>Phrases Detected ({detectedPhrases.length})</h6>
+            <button onClick={() => { setDetectedPhrases([]); pendingPhrasesRef.current = []; }} className="clear-link-btn">Reset</button>
+          </header>
+
+          <div className="discovery-stack">
+            {detectedPhrases.slice(-3).map((phrase, index) => (
+              <div key={index} className="discovery-bubble">
+                <span className="quote">"</span>{phrase}<span className="quote">"</span>
               </div>
             ))}
           </div>
-          {detectedPhrases.length >= 3 && (
-            <button
-              onClick={handleAnalyzeNow}
-              className="analyze-btn"
-              disabled={isAnalyzing || isLoading}
-            >
-              {isAnalyzing || isLoading ? 'Analyzing...' : `Analyze ${detectedPhrases.length} Phrases`}
-            </button>
-          )}
-          {detectedPhrases.length < 3 && (
-            <p className="hint-text">Keep talking! Need at least 3 phrases to analyze.</p>
-          )}
+
+          <div className="action-area">
+            {isAnalyzing || isLoading ? (
+              <span className="hint-val auto-save-indicator">✓ Auto-saving phrases...</span>
+            ) : pendingPhrasesRef.current.length > 0 ? (
+              <span className="hint-val auto-save-indicator">Auto-saves in 5s after speaking</span>
+            ) : (
+              <span className="hint-val">✓ Phrases saved to your profile</span>
+            )}
+          </div>
         </div>
       )}
 
-      <style jsx>{`
-        .background-recorder {
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          padding: 1rem;
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-          max-width: 300px;
-          z-index: 1000;
-        }
-
-        .recorder-status {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .status-indicator {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: #4a5568;
-        }
-
-        .pulse {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #e2e8f0;
-        }
-
-        .pulse.active {
-          background: #4299e1;
-          animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-          0% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.7);
-          }
-          70% {
-            transform: scale(1);
-            box-shadow: 0 0 0 6px rgba(66, 153, 225, 0);
-          }
-          100% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(66, 153, 225, 0);
-          }
-        }
-
-        .audio-level-mini {
-          flex: 1;
-          height: 4px;
-          background: #f1f5f9;
-          border-radius: 2px;
-          overflow: hidden;
-        }
-
-        .level-bar {
-          height: 100%;
-          border-radius: 2px;
-          transition: width 0.1s ease, background-color 0.2s ease;
-        }
-
-        .detected-phrases {
-          border-top: 1px solid #e2e8f0;
-          padding-top: 0.75rem;
-        }
-
-        .phrases-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.5rem;
-        }
-
-        .detected-phrases h4 {
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: #718096;
-          margin: 0;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .clear-btn {
-          font-size: 0.65rem;
-          padding: 0.2rem 0.5rem;
-          background: #e2e8f0;
-          color: #718096;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .clear-btn:hover {
-          background: #cbd5e0;
-          color: #4a5568;
-        }
-
-        .phrase-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-          max-height: 150px;
-          overflow-y: auto;
-        }
-
-        .detected-phrase {
-          font-size: 0.75rem;
-          color: #4a5568;
-          padding: 0.25rem 0.5rem;
-          background: #f8fafc;
-          border-radius: 6px;
-          border-left: 2px solid #4299e1;
-        }
-
-        .analyze-btn {
-          width: 100%;
-          margin-top: 0.75rem;
-          padding: 0.6rem 1rem;
-          font-size: 0.85rem;
-          font-weight: 600;
-          background: linear-gradient(135deg, #48bb78, #38a169);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .analyze-btn:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
-        }
-
-        .analyze-btn:disabled {
-          background: #a0aec0;
-          cursor: not-allowed;
-        }
-
-        .hint-text {
-          font-size: 0.7rem;
-          color: #a0aec0;
-          text-align: center;
-          margin-top: 0.5rem;
-          font-style: italic;
-        }
-
-        @media (max-width: 768px) {
-          .background-recorder {
-            bottom: 10px;
-            right: 10px;
-            left: 10px;
-            max-width: none;
-          }
-        }
-      `}</style>
+      <style jsx>{styles}</style>
     </div>
   );
 };
+
+const styles = `
+    .background-recorder-widget {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 280px;
+        padding: var(--space-md) !important;
+        z-index: 1000;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border-glass) !important;
+    }
+
+    .widget-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; }
+    .status-meta { display: flex; align-items: center; gap: 0.5rem; min-width: 80px; }
+    .status-orb { width: 8px; height: 8px; border-radius: 50%; background: var(--text-secondary); opacity: 0.3; }
+    .status-orb.active { background: var(--primary); opacity: 1; box-shadow: 0 0 10px var(--primary); animation: widget-pulse 2s infinite; }
+    .status-text { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); }
+
+    .level-monitor { flex: 1; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; overflow: hidden; }
+    .level-fill { height: 100%; border-radius: 2px; transition: width 0.1s ease, background-color 0.2s ease; }
+
+    .widget-discovery { border-top: 1px solid var(--border-glass); padding-top: 0.75rem; }
+    .discovery-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .discovery-header h6 { margin: 0; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.6; }
+    .clear-link-btn { background: none; border: none; font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); cursor: pointer; text-decoration: underline; opacity: 0.5; }
+    .clear-link-btn:hover { opacity: 1; }
+
+    .discovery-stack { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.75rem; }
+    .discovery-bubble { font-size: 0.75rem; color: var(--text-primary); padding: 0.6rem; background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-sm); border-left: 2px solid var(--primary); line-height: 1.4; }
+    .quote { opacity: 0.4; color: var(--primary); }
+
+    .action-area { text-align: center; }
+    .mini-btn { padding: 0.5rem 1rem; font-size: 0.75rem; width: 100%; }
+    .hint-val { font-size: 0.65rem; font-style: italic; color: var(--text-secondary); opacity: 0.4; }
+
+    @keyframes widget-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
+
+    @media (max-width: 768px) {
+        .background-recorder-widget { right: 12px; bottom: 12px; width: calc(100% - 24px); }
+    }
+`;

@@ -28,6 +28,8 @@ interface SpanishTranslationsProps {
   onPronunciationPractice?: (englishPhrase: string, spanishPhrase: string) => void;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
   phrases,
   profile,
@@ -39,20 +41,15 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
   const [selectedPhrases, setSelectedPhrases] = useState<string[]>([]);
 
   const handleGenerateTranslations = async () => {
-    if (selectedPhrases.length === 0) {
-      alert('Please select at least one phrase to translate');
-      return;
-    }
-
+    if (selectedPhrases.length === 0) return;
     setIsLoading(true);
 
     try {
-      // Map selected IDs to their English text
       const selectedPhrasesData = phrases
         .filter(p => selectedPhrases.includes(p.phraseId))
         .map(p => p.englishText);
 
-      const response = await fetch('/api/translations', {
+      const response = await fetch(`${API_BASE_URL}/api/translations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,15 +62,13 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
       });
 
       const result = await response.json();
-
       if (result.success) {
         setTranslations(result.data.translations);
       } else {
         throw new Error(result.error);
       }
-
     } catch {
-      alert('Failed to generate translations. Please try again.');
+      alert('Failed to synchronize translations. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -87,425 +82,211 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
     );
   };
 
-  const selectAllPhrases = () => {
-    setSelectedPhrases(phrases.map(p => p.phraseId));
-  };
-
-  const clearSelection = () => {
-    setSelectedPhrases([]);
-  };
-
   return (
-    <div className="spanish-translations">
-      <div className="translation-header">
-        <h2>🇪🇸 Your Personalized Spanish Translations</h2>
-        <p>
-          Based on your {profile.overallTone} tone and {profile.overallFormality} style,
-          here are Spanish translations that match how you actually speak.
-        </p>
-      </div>
+    <div className="spanish-translations-module fade-in">
+      <header className="module-header">
+        <span className="badge-pill">Stylistic Mapping</span>
+        <h2>Persona Synchronization</h2>
+        <p>Based on your <strong className="highlight">{profile.overallTone}</strong> tone and <strong className="highlight">{profile.overallFormality}</strong> delivery, we've mapped your English expressions to their Spanish counterparts.</p>
+      </header>
 
       {translations.length === 0 ? (
-        <div className="phrase-selection">
-          <div className="selection-controls">
-            <h3>Select phrases to translate:</h3>
-            <div className="control-buttons">
-              <button onClick={selectAllPhrases} className="select-all-btn">
-                Select All ({phrases.length})
-              </button>
-              <button onClick={clearSelection} className="clear-btn">
-                Clear Selection
-              </button>
+        <div className="selection-view glass-card">
+          <div className="selection-header">
+            <h3>Select Expressions to Synchronize</h3>
+            <div className="selection-actions">
+              <button onClick={() => setSelectedPhrases(phrases.map(p => p.phraseId))} className="small-text-btn">Select All</button>
+              <button onClick={() => setSelectedPhrases([])} className="small-text-btn">Clear</button>
             </div>
           </div>
 
-          <div className="phrase-list">
+          <div className="phrase-grid">
             {phrases.map((phrase) => (
               <div
                 key={phrase.phraseId}
-                className={`phrase-item ${selectedPhrases.includes(phrase.phraseId) ? 'selected' : ''}`}
+                className={`phrase-tile glass-card ${selectedPhrases.includes(phrase.phraseId) ? 'active' : ''}`}
                 onClick={() => togglePhraseSelection(phrase.phraseId)}
               >
-                <div className="phrase-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={selectedPhrases.includes(phrase.phraseId)}
-                    onChange={() => togglePhraseSelection(phrase.phraseId)}
-                  />
-                </div>
-                <div className="phrase-content">
-                  <div className="phrase-text">"{phrase.englishText}"</div>
-                  <div className="phrase-intent">{phrase.intent}</div>
+                <div className="tile-check">{selectedPhrases.includes(phrase.phraseId) ? '✓' : ''}</div>
+                <div className="tile-content">
+                  <p className="p-text">"{phrase.englishText}"</p>
+                  <span className="p-tag">{phrase.intent}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="generate-section">
+          <footer className="selection-footer">
             <button
               onClick={handleGenerateTranslations}
               disabled={selectedPhrases.length === 0 || isLoading}
-              className="generate-btn"
+              className="primary-btn wide-btn"
             >
               {isLoading ? (
-                <>
-                  <div className="spinner" />
-                  Generating Spanish Translations...
-                </>
+                <span className="load-row">
+                  <span className="themed-spinner mini"></span>
+                  Processing Linguistic Vectors...
+                </span>
               ) : (
-                `Generate Spanish for ${selectedPhrases.length} phrase${selectedPhrases.length !== 1 ? 's' : ''}`
+                `Synchronize ${selectedPhrases.length} Expression${selectedPhrases.length !== 1 ? 's' : ''}`
               )}
             </button>
-          </div>
+          </footer>
         </div>
       ) : (
-        <div className="translations-results">
-          <div className="results-header">
-            <h3>Your Spanish Translations</h3>
+        <div className="results-view">
+          <div className="results-control-bar">
+            <h3>Synchronized Mappings</h3>
             <button
-              onClick={() => {
-                setTranslations([]);
-                setSelectedPhrases([]);
-              }}
-              className="new-translation-btn"
+              onClick={() => { setTranslations([]); setSelectedPhrases([]); }}
+              className="secondary-btn small"
             >
-              Translate More Phrases
+              Back to Selection
             </button>
           </div>
 
-          <div className="translation-cards">
+          <div className="translation-tome">
             {translations.map((result, index) => (
-              <div key={index} className="translation-card">
-                <div className="english-phrase">
-                  <h4>English:</h4>
-                  <p>"{result.englishPhrase}"</p>
-                </div>
+              <div key={index} className="translation-entry glass-card fade-in">
+                <section className="entry-header">
+                  <div className="e-label">Input Source</div>
+                  <h4>"{result.englishPhrase}"</h4>
+                </section>
 
-                <div className="spanish-translations">
-                  <div className="literal-translation">
-                    <h5>📚 Literal Translation:</h5>
-                    <p className="spanish-text">"{result.translation.literal}"</p>
+                <div className="version-split">
+                  <div className="v-card literal">
+                    <span className="v-tag">Literal Construct</span>
+                    <p className="v-text">"{result.translation.literal}"</p>
                   </div>
-
-                  <div className="natural-translation">
-                    <h5>💬 Natural (Your Style):</h5>
-                    <p className="spanish-text featured">"{result.translation.natural}"</p>
-                  </div>
-                </div>
-
-                <div className="translation-explanation">
-                  <h5>💡 Explanation:</h5>
-                  <p>{result.translation.explanation}</p>
-                </div>
-
-                {result.translation.culturalNotes && (
-                  <div className="cultural-notes">
-                    <h5>🌎 Cultural Notes:</h5>
-                    <p>{result.translation.culturalNotes}</p>
-                  </div>
-                )}
-
-                <div className="learning-tips">
-                  <h5>🎯 Learning Tips:</h5>
-                  <ul>
-                    {result.learningTips.map((tip, tipIndex) => (
-                      <li key={tipIndex}>{tip}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="style-matching">
-                  <h5>✨ Style Matching:</h5>
-                  <div className="matching-indicators">
-                    <span className={`indicator ${result.styleMatching.tonePreserved ? 'good' : 'neutral'}`}>
-                      {result.styleMatching.tonePreserved ? '✅' : '⚠️'} Tone Preserved
-                    </span>
-                    <span className={`indicator ${result.styleMatching.formalityAdjusted ? 'good' : 'neutral'}`}>
-                      {result.styleMatching.formalityAdjusted ? '✅' : '⚠️'} Formality Matched
-                    </span>
-                    <span className={`indicator ${result.styleMatching.personalityMaintained ? 'good' : 'neutral'}`}>
-                      {result.styleMatching.personalityMaintained ? '✅' : '⚠️'} Personality Maintained
-                    </span>
+                  <div className="v-card natural active">
+                    <span className="v-tag">Natural Reflection</span>
+                    <p className="v-text featured">"{result.translation.natural}"</p>
                   </div>
                 </div>
 
-                {onPronunciationPractice && (
-                  <div className="pronunciation-practice">
+                <div className="entry-grid">
+                  <div className="g-section">
+                    <h6>Semantic Logic</h6>
+                    <p className="g-text">{result.translation.explanation}</p>
+                    {result.translation.culturalNotes && (
+                      <div className="cultural-aside">
+                        <span className="aside-tag">Cultural Context</span>
+                        <p>{result.translation.culturalNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="g-section">
+                    <h6>Acquisition Vectors</h6>
+                    <ul className="tip-list">
+                      {result.learningTips.map((tip, i) => <li key={i}>{tip}</li>)}
+                    </ul>
+                  </div>
+                </div>
+
+                <footer className="entry-footer">
+                  <div className="style-validators">
+                    <span className={`v-pill ${result.styleMatching.tonePreserved ? 'pass' : ''}`}>Tone Match</span>
+                    <span className={`v-pill ${result.styleMatching.formalityAdjusted ? 'pass' : ''}`}>Style Vector</span>
+                    <span className={`v-pill ${result.styleMatching.personalityMaintained ? 'pass' : ''}`}>Persona Identity</span>
+                  </div>
+                  {onPronunciationPractice && (
                     <button
                       onClick={() => onPronunciationPractice(result.englishPhrase, result.translation.natural)}
-                      className="practice-btn"
+                      className="primary-btn practice-btn"
                     >
-                      🎤 Practice Pronunciation
+                      🎤 Activate Voice Lab
                     </button>
-                  </div>
-                )}
+                  )}
+                </footer>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <style jsx>{`
-        .spanish-translations {
-          padding: 2rem;
-        }
-
-        .translation-header {
-          text-align: center;
-          margin-bottom: 2rem;
-        }
-
-        .translation-header h2 {
-          color: #2d3748;
-          margin-bottom: 1rem;
-        }
-
-        .translation-header p {
-          color: #718096;
-          font-size: 1.1rem;
-        }
-
-        .selection-controls {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-        }
-
-        .control-buttons {
-          display: flex;
-          gap: 1rem;
-        }
-
-        .select-all-btn, .clear-btn {
-          padding: 0.5rem 1rem;
-          border: 1px solid #e2e8f0;
-          background: white;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          font-size: 0.875rem;
-        }
-
-        .select-all-btn:hover, .clear-btn:hover {
-          background: #f8fafc;
-        }
-
-        .phrase-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-          margin-bottom: 2rem;
-        }
-
-        .phrase-item {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1rem;
-          border: 2px solid #e2e8f0;
-          border-radius: 0.75rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .phrase-item:hover {
-          border-color: #cbd5e0;
-        }
-
-        .phrase-item.selected {
-          border-color: #4299e1;
-          background: #ebf8ff;
-        }
-
-        .phrase-content {
-          flex: 1;
-        }
-
-        .phrase-text {
-          font-weight: 500;
-          color: #2d3748;
-          margin-bottom: 0.25rem;
-        }
-
-        .phrase-intent {
-          font-size: 0.875rem;
-          color: #718096;
-          text-transform: capitalize;
-        }
-
-        .generate-section {
-          text-align: center;
-        }
-
-        .generate-btn {
-          padding: 1rem 2rem;
-          background: linear-gradient(135deg, #4299e1, #3182ce);
-          color: white;
-          border: none;
-          border-radius: 0.75rem;
-          font-size: 1.1rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin: 0 auto;
-        }
-
-        .generate-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(66, 153, 225, 0.3);
-        }
-
-        .generate-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top: 2px solid white;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .results-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-        }
-
-        .new-translation-btn {
-          padding: 0.5rem 1rem;
-          background: #e2e8f0;
-          border: none;
-          border-radius: 0.5rem;
-          cursor: pointer;
-        }
-
-        .translation-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 2rem;
-        }
-
-        .translation-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 2rem;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-          border: 1px solid #e2e8f0;
-        }
-
-        .english-phrase {
-          margin-bottom: 1.5rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid #f1f5f9;
-        }
-
-        .spanish-translations {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1.5rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .spanish-text {
-          font-size: 1.1rem;
-          font-weight: 500;
-          color: #2d3748;
-          font-style: italic;
-        }
-
-        .spanish-text.featured {
-          color: #2b6cb0;
-          font-size: 1.2rem;
-        }
-
-        .translation-explanation,
-        .cultural-notes,
-        .learning-tips {
-          margin-bottom: 1rem;
-        }
-
-        .learning-tips ul {
-          margin: 0.5rem 0 0 1rem;
-        }
-
-        .learning-tips li {
-          margin-bottom: 0.25rem;
-        }
-
-        .matching-indicators {
-          display: flex;
-          gap: 1rem;
-          flex-wrap: wrap;
-        }
-
-        .indicator {
-          padding: 0.25rem 0.75rem;
-          border-radius: 1rem;
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-
-        .indicator.good {
-          background: #c6f6d5;
-          color: #22543d;
-        }
-
-        .indicator.neutral {
-          background: #fed7d7;
-          color: #742a2a;
-        }
-
-        .pronunciation-practice {
-          margin-top: 1.5rem;
-          text-align: center;
-        }
-
-        .practice-btn {
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          color: white;
-          border: none;
-          padding: 0.75rem 1.5rem;
-          border-radius: 0.75rem;
-          cursor: pointer;
-          font-weight: 600;
-          transition: all 0.2s;
-        }
-
-        .practice-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-        }
-
-        @media (max-width: 768px) {
-          .spanish-translations {
-            grid-template-columns: 1fr;
-          }
-
-          .selection-controls {
-            flex-direction: column;
-            gap: 1rem;
-            align-items: stretch;
-          }
-
-          .matching-indicators {
-            flex-direction: column;
-            gap: 0.5rem;
-          }
-        }
-      `}</style>
+      <style jsx>{styles}</style>
     </div>
   );
 };
+
+const styles = `
+    .spanish-translations-module { max-width: 900px; margin: 0 auto; }
+    .module-header { text-align: center; margin-bottom: var(--space-xl); }
+    .module-header h2 { font-size: 2.2rem; margin: var(--space-md) 0; color: var(--text-primary); }
+    .module-header p { color: var(--text-secondary); opacity: 0.8; max-width: 600px; margin: 0 auto; line-height: 1.6; }
+    .highlight { color: var(--primary); }
+
+    .badge-pill {
+        display: inline-block;
+        background: rgba(99, 102, 241, 0.1);
+        color: var(--primary);
+        padding: 0.2rem 0.8rem;
+        border-radius: var(--radius-full);
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    /* Selection View */
+    .selection-view { padding: var(--space-xl) !important; }
+    .selection-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); }
+    .selection-actions { display: flex; gap: 1rem; }
+    .small-text-btn { background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; font-weight: 700; cursor: pointer; text-decoration: underline; }
+
+    .phrase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl); }
+    .phrase-tile { padding: var(--space-md) !important; display: flex; gap: var(--space-md); align-items: flex-start; cursor: pointer; transition: all 0.2s; background: rgba(0,0,0,0.1) !important; border: 1px solid var(--border-glass) !important; }
+    .phrase-tile:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.2) !important; }
+    .phrase-tile.active { border-color: var(--primary) !important; background: rgba(99, 102, 241, 0.05) !important; }
+
+    .tile-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-glass); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: white; font-weight: 900; }
+    .phrase-tile.active .tile-check { background: var(--primary); border-color: var(--primary); }
+    
+    .p-text { margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+    .p-tag { font-size: 0.7rem; text-transform: uppercase; font-weight: 800; color: var(--text-secondary); opacity: 0.6; }
+
+    .selection-footer { display: flex; justify-content: center; }
+    .wide-btn { min-width: 320px; }
+    .load-row { display: flex; align-items: center; gap: 0.75rem; justify-content: center; }
+
+    /* Results View */
+    .results-control-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); padding: 0 var(--space-sm); }
+    .translation-tome { display: flex; flex-direction: column; gap: var(--space-xl); }
+    .translation-entry { padding: 0 !important; overflow: hidden; }
+
+    .entry-header { padding: var(--space-lg) var(--space-xl); background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-glass); }
+    .e-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--primary); margin-bottom: 0.2rem; }
+    .entry-header h4 { margin: 0; font-size: 1.3rem; color: var(--text-primary); }
+
+    .version-split { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border-glass); }
+    .v-card { padding: var(--space-lg) var(--space-xl); display: flex; flex-direction: column; gap: 0.5rem; }
+    .v-card.natural { background: rgba(99, 102, 241, 0.05); }
+    .v-tag { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.6; }
+    .v-text { font-size: 1rem; color: var(--text-secondary); font-style: italic; }
+    .v-text.featured { font-size: 1.4rem; color: var(--accent); font-weight: 700; }
+
+    .entry-grid { padding: var(--space-xl); display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--space-xl); }
+    .g-section h6 { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 1rem; }
+    .g-text { font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+
+    .cultural-aside { margin-top: var(--space-lg); padding: var(--space-md); background: rgba(16, 185, 129, 0.05); border-radius: var(--radius-md); border-left: 2px solid var(--accent); }
+    .aside-tag { font-size: 0.65rem; font-weight: 800; color: var(--accent); text-transform: uppercase; }
+    .cultural-aside p { margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary); }
+
+    .tip-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .tip-list li { font-size: 0.85rem; color: var(--text-secondary); padding-left: 1rem; position: relative; }
+    .tip-list li::before { content: '•'; position: absolute; left: 0; color: var(--primary); font-weight: 900; }
+
+    .entry-footer { padding: var(--space-lg) var(--space-xl); background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
+    .style-validators { display: flex; gap: 0.5rem; }
+    .v-pill { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.4; padding: 0.2rem 0.6rem; border: 1px solid var(--border-glass); border-radius: var(--radius-full); }
+    .v-pill.pass { color: var(--accent); opacity: 1; border-color: var(--accent); background: rgba(16, 185, 129, 0.05); }
+
+    .practice-btn { padding: 0.5rem 1.2rem; font-size: 0.85rem; }
+
+    @media (max-width: 800px) {
+        .version-split, .entry-grid { grid-template-columns: 1fr; }
+        .entry-footer { flex-direction: column; gap: var(--space-lg); }
+    }
+`;

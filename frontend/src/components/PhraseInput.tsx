@@ -19,7 +19,6 @@ export const PhraseInput: React.FC<PhraseInputProps> = ({ userId, onAnalysisComp
     newPhrases[index] = value;
     setPhrases(newPhrases);
 
-    // Clear error when user starts typing
     if (error) {
       clearError();
     }
@@ -57,23 +56,26 @@ export const PhraseInput: React.FC<PhraseInputProps> = ({ userId, onAnalysisComp
   const displayPhrases = showAllInputs ? phrases : phrases.slice(0, 5);
 
   return (
-    <div className="phrase-input-container">
-      <div className="header">
-        <h2>Tell us how you speak</h2>
-        <p>Enter 5-10 common English phrases you use in daily life. We'll analyze your speaking style to create personalized Spanish lessons.</p>
-      </div>
+    <div className="phrase-input-container fade-in">
+      <header className="input-header">
+        <span className="badge-pill">Style Discovery</span>
+        <h2>Mirror Your Voice</h2>
+        <p>Input 5-10 common English phrases you use in your daily life. We'll analyze your unique rhythm to build your Spanish persona.</p>
+      </header>
 
-      <form onSubmit={handleSubmit} className="phrase-form">
-        <div className="phrases-list">
+      <form onSubmit={handleSubmit} className="phrase-form glass-card">
+        <div className="phrases-scroll-area">
           {displayPhrases.map((phrase, index) => (
-            <div key={index} className="phrase-input-group">
-              <label htmlFor={`phrase-${index}`} className="phrase-label">
-                Phrase {index + 1}
-                {index >= 5 && (
-                  <span className="optional-label">(optional)</span>
-                )}
-              </label>
-              <div className="input-with-remove">
+            <div key={index} className="input-field-group">
+              <div className="field-label-row">
+                <label htmlFor={`phrase-${index}`} className="group-label">
+                  Expression {index + 1}
+                  {index >= 5 && <span className="optional">(optional)</span>}
+                </label>
+                <span className="char-indicator">{phrase.length}/500</span>
+              </div>
+
+              <div className="input-row">
                 <input
                   id={`phrase-${index}`}
                   type="text"
@@ -81,247 +83,297 @@ export const PhraseInput: React.FC<PhraseInputProps> = ({ userId, onAnalysisComp
                   onChange={(e) => handlePhraseChange(index, e.target.value)}
                   placeholder={getPhrasePrompt(index)}
                   maxLength={500}
-                  className="phrase-input"
+                  className="premium-input"
                   disabled={isLoading}
                 />
                 {index > 0 && showAllInputs && (
                   <button
                     type="button"
                     onClick={() => removePhrase(index)}
-                    className="remove-phrase-btn"
+                    className="delete-btn"
                     disabled={isLoading}
+                    title="Remove Phrase"
                   >
                     ×
                   </button>
                 )}
               </div>
-              <div className="char-count">
-                {phrase.length}/500
-              </div>
             </div>
           ))}
         </div>
 
-        {!showAllInputs && phrases.length < 10 && (
-          <button
-            type="button"
-            onClick={addMoreInputs}
-            className="add-more-btn"
-            disabled={isLoading}
-          >
-            Add more phrases (optional)
-          </button>
-        )}
+        <div className="action-row">
+          {!showAllInputs && phrases.length < 10 && (
+            <button
+              type="button"
+              onClick={addMoreInputs}
+              className="secondary-btn small-btn"
+              disabled={isLoading}
+            >
+              + Add more training data
+            </button>
+          )}
 
-        {showAllInputs && phrases.length < 10 && (
-          <button
-            type="button"
-            onClick={addMoreInputs}
-            className="add-phrase-btn"
-            disabled={isLoading}
-          >
-            + Add another phrase
-          </button>
-        )}
+          {showAllInputs && phrases.length < 10 && (
+            <button
+              type="button"
+              onClick={addMoreInputs}
+              className="secondary-btn small-btn"
+              disabled={isLoading}
+            >
+              + Add expression
+            </button>
+          )}
+        </div>
 
-        <div className="form-footer">
-          <div className="phrase-count">
-            {filledPhrases.length} phrase{filledPhrases.length !== 1 ? 's' : ''} entered
+        <footer className="form-submit-footer">
+          <div className="status-indicator">
+            <span className={`count-badge ${filledPhrases.length >= 5 ? 'valid' : ''}`}>
+              {filledPhrases.length}/10
+            </span>
+            <span className="count-label">Minimum 5 phrases recommended</span>
           </div>
 
           {error && (
-            <div className="error-message">
+            <div className="error-callout">
+              <span className="error-icon">⚠️</span>
               {error}
             </div>
           )}
 
           <button
             type="submit"
-            className="analyze-btn"
-            disabled={isLoading || filledPhrases.length === 0}
+            className="primary-btn submit-btn"
+            disabled={isLoading || filledPhrases.length < 3}
           >
-            {isLoading ? 'Analyzing your style...' : 'Analyze My Speaking Style'}
+            {isLoading ? (
+              <span className="loading-content">
+                <span className="themed-spinner mini"></span>
+                Analyzing Fingerprint...
+              </span>
+            ) : 'Analyze My Style'}
           </button>
-        </div>
+        </footer>
       </form>
 
       <style jsx>{`
         .phrase-input-container {
-          max-width: 600px;
+          max-width: 700px;
           margin: 0 auto;
-          padding: 2rem;
         }
 
-        .header {
+        .input-header {
           text-align: center;
-          margin-bottom: 2rem;
+          margin-bottom: var(--space-xl);
         }
 
-        .header h2 {
-          color: #2d3748;
-          margin-bottom: 0.5rem;
+        .badge-pill {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            padding: 0.2rem 0.8rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 1px solid rgba(99, 102, 241, 0.2);
         }
 
-        .header p {
-          color: #718096;
-          line-height: 1.5;
+        .input-header h2 {
+          color: var(--text-primary);
+          font-size: 2.2rem;
+          margin: var(--space-md) 0;
+        }
+
+        .input-header p {
+          color: var(--text-secondary);
+          max-width: 500px;
+          margin: 0 auto;
+          line-height: 1.6;
         }
 
         .phrase-form {
+          padding: var(--space-xl) !important;
+        }
+
+        .phrases-scroll_area {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: var(--space-lg);
         }
 
-        .phrases-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
+        .input-field-group {
+          margin-bottom: var(--space-lg);
         }
 
-        .phrase-input-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
+        .field-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
         }
 
-        .phrase-label {
-          font-weight: 500;
-          color: #4a5568;
-          font-size: 0.9rem;
+        .group-label {
+          font-weight: 800;
+          color: var(--text-secondary);
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        .optional-label {
-          color: #a0aec0;
-          font-weight: normal;
+        .optional {
+          color: var(--text-secondary);
+          opacity: 0.5;
           margin-left: 0.5rem;
+          font-weight: 400;
         }
 
-        .input-with-remove {
+        .char-indicator {
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          opacity: 0.5;
+        }
+
+        .input-row {
           display: flex;
-          gap: 0.5rem;
+          gap: 0.75rem;
           align-items: center;
         }
 
-        .phrase-input {
+        .premium-input {
           flex: 1;
-          padding: 0.75rem;
-          border: 2px solid #e2e8f0;
-          border-radius: 0.5rem;
+          padding: 1rem;
+          background: rgba(0, 0, 0, 0.2);
+          border: 1px solid var(--border-glass);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
           font-size: 1rem;
-          transition: border-color 0.2s;
+          transition: all var(--transition-fast);
         }
 
-        .phrase-input:focus {
+        .premium-input:focus {
           outline: none;
-          border-color: #4299e1;
+          border-color: var(--primary);
+          background: rgba(0, 0, 0, 0.3);
+          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
 
-        .phrase-input:disabled {
-          background-color: #f7fafc;
-          cursor: not-allowed;
-        }
-
-        .remove-phrase-btn {
-          width: 2rem;
-          height: 2rem;
+        .delete-btn {
+          width: 2.2rem;
+          height: 2.2rem;
           border: none;
-          background-color: #fed7d7;
-          color: #e53e3e;
+          background: rgba(239, 68, 68, 0.1);
+          color: var(--danger);
           border-radius: 50%;
           cursor: pointer;
-          font-size: 1.2rem;
+          font-size: 1.5rem;
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-
-        .remove-phrase-btn:hover {
-          background-color: #feb2b2;
-        }
-
-        .char-count {
-          font-size: 0.75rem;
-          color: #a0aec0;
-          text-align: right;
-        }
-
-        .add-more-btn, .add-phrase-btn {
-          padding: 0.5rem 1rem;
-          border: 2px dashed #cbd5e0;
-          background: none;
-          color: #718096;
-          border-radius: 0.5rem;
-          cursor: pointer;
           transition: all 0.2s;
         }
 
-        .add-more-btn:hover, .add-phrase-btn:hover {
-          border-color: #4299e1;
-          color: #4299e1;
+        .delete-btn:hover { background: var(--danger); color: white; }
+
+        .action-row {
+          margin: var(--space-lg) 0;
+          display: flex;
+          justify-content: center;
         }
 
-        .form-footer {
+        .small-btn {
+            font-size: 0.85rem;
+            padding: 0.4rem 1rem;
+        }
+
+        .form-submit-footer {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: var(--space-lg);
           align-items: center;
-          margin-top: 1rem;
+          margin-top: var(--space-xl);
+          padding-top: var(--space-xl);
+          border-top: 1px solid var(--border-glass);
         }
 
-        .phrase-count {
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .count-badge {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--radius-sm);
+            font-weight: 800;
+            font-size: 0.8rem;
+        }
+
+        .count-badge.valid {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent);
+        }
+
+        .count-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .error-callout {
+          color: var(--danger);
+          background: rgba(239, 68, 68, 0.1);
+          padding: 0.75rem var(--space-lg);
+          border-radius: var(--radius-md);
           font-size: 0.9rem;
-          color: #718096;
-        }
-
-        .error-message {
-          color: #e53e3e;
-          background-color: #fed7d7;
-          padding: 0.75rem;
-          border-radius: 0.5rem;
-          text-align: center;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
           width: 100%;
         }
 
-        .analyze-btn {
-          padding: 1rem 2rem;
-          background-color: #4299e1;
-          color: white;
-          border: none;
-          border-radius: 0.5rem;
-          font-size: 1rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background-color 0.2s;
-          min-width: 200px;
+        .submit-btn {
+          padding: 1rem 3rem;
+          font-size: 1.1rem;
+          font-weight: 800;
+          min-width: 280px;
         }
 
-        .analyze-btn:hover:not(:disabled) {
-          background-color: #3182ce;
+        .loading-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        .analyze-btn:disabled {
-          background-color: #cbd5e0;
-          cursor: not-allowed;
+        .themed-spinner.mini { width: 18px; height: 18px; border-width: 2px; }
+
+        @media (max-width: 600px) {
+          .phrase-input-container { padding: 1rem; }
+          .input-header h2 { font-size: 1.8rem; }
+          .submit-btn { width: 100%; }
         }
       `}</style>
     </div>
   );
 };
 
-// Helper function for placeholder text
 function getPhrasePrompt(index: number): string {
   const prompts = [
-    "e.g., Could you take a look at this when you get a chance?",
-    "e.g., Hang on, I'm just finishing something up",
-    "e.g., No worries, take your time",
-    "e.g., I totally forgot to send that email, my bad",
-    "e.g., Let me know if you need anything else",
-    "e.g., Thanks for getting back to me so quickly",
-    "e.g., I'll circle back with you on this",
-    "e.g., Does that make sense to you?",
-    "e.g., I'm running a bit behind schedule",
-    "e.g., Catch you later!"
+    "e.g., Let's catch up later today.",
+    "e.g., I'm just playing it by ear.",
+    "e.g., That makes a lot of sense.",
+    "e.g., Sorry, I'm running behind.",
+    "e.g., No worries, take your time.",
+    "e.g., Can you send me that link?",
+    "e.g., I'll handle that right away.",
+    "e.g., What's the plan for tonight?",
+    "e.g., That sounds like a great idea.",
+    "e.g., Let's touch base tomorrow."
   ];
   return prompts[index] || "Enter a phrase you commonly use...";
 }

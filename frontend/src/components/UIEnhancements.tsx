@@ -30,21 +30,29 @@ export const TypingAnimation: React.FC<TypingAnimationProps> = ({
   return (
     <span className="typing-animation">
       {displayText}
-      {currentIndex < text.length && <span className="cursor">|</span>}
-      
+      {currentIndex < text.length && <span className="cursor"></span>}
+
       <style jsx>{`
         .typing-animation {
           font-family: inherit;
+          display: inline-flex;
+          align-items: center;
         }
         
         .cursor {
-          animation: blink 1s infinite;
-          color: #4299e1;
+          display: inline-block;
+          width: 8px;
+          height: 1.2em;
+          background: var(--primary);
+          margin-left: 4px;
+          border-radius: 2px;
+          animation: blink 0.8s step-end infinite;
+          box-shadow: 0 0 10px var(--primary);
         }
         
         @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
         }
       `}</style>
     </span>
@@ -60,53 +68,62 @@ interface ProgressBarProps {
 export const ProgressBar: React.FC<ProgressBarProps> = ({
   progress,
   label,
-  color = '#4299e1'
+  color
 }) => {
   return (
     <div className="progress-container">
-      {label && <div className="progress-label">{label}</div>}
-      <div className="progress-bar">
-        <div 
+      <div className="progress-info">
+        {label && <span className="progress-label">{label}</span>}
+        <span className="progress-text">{Math.round(progress)}%</span>
+      </div>
+      <div className="progress-track">
+        <div
           className="progress-fill"
-          style={{ 
+          style={{
             width: `${Math.min(progress, 100)}%`,
-            backgroundColor: color
+            background: color || 'linear-gradient(90deg, var(--primary), var(--secondary))'
           }}
         />
       </div>
-      <div className="progress-text">{Math.round(progress)}%</div>
-      
+
       <style jsx>{`
         .progress-container {
           width: 100%;
           margin: 1rem 0;
         }
         
-        .progress-label {
-          font-size: 0.875rem;
-          color: #718096;
+        .progress-info {
+          display: flex;
+          justify-content: space-between;
           margin-bottom: 0.5rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .progress-label {
+          color: var(--text-secondary);
         }
         
-        .progress-bar {
+        .progress-text {
+          color: var(--primary);
+        }
+        
+        .progress-track {
           width: 100%;
           height: 8px;
-          background: #e2e8f0;
-          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: var(--radius-full);
           overflow: hidden;
+          border: 1px solid var(--border-glass);
         }
         
         .progress-fill {
           height: 100%;
-          transition: width 0.3s ease;
-          border-radius: 4px;
-        }
-        
-        .progress-text {
-          font-size: 0.75rem;
-          color: #4a5568;
-          text-align: center;
-          margin-top: 0.25rem;
+          transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+          border-radius: var(--radius-full);
+          box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
         }
       `}</style>
     </div>
@@ -121,46 +138,71 @@ interface LoadingSpinnerProps {
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   size = 'medium',
-  color = '#4299e1',
+  color,
   text
 }) => {
-  const sizeMap = {
-    small: '20px',
-    medium: '40px',
-    large: '60px'
-  }
+  const sizeValue = size === 'small' ? '24px' : size === 'large' ? '64px' : '40px';
 
   return (
-    <div className="spinner-container">
-      <div className="spinner" />
-      {text && <div className="spinner-text">{text}</div>}
-      
+    <div className="spinner-wrap">
+      <div className="modern-spinner">
+        <div className="spinner-ring"></div>
+        <div className="spinner-core"></div>
+      </div>
+      {text && <div className="spinner-msg">{text}</div>}
+
       <style jsx>{`
-        .spinner-container {
+        .spinner-wrap {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 1rem;
+          gap: 1.5rem;
+          padding: 2rem;
         }
         
-        .spinner {
-          width: ${sizeMap[size]};
-          height: ${sizeMap[size]};
-          border: 3px solid #e2e8f0;
-          border-top: 3px solid ${color};
+        .modern-spinner {
+          position: relative;
+          width: ${sizeValue};
+          height: ${sizeValue};
+        }
+
+        .spinner-ring {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          border: 3px solid var(--border-glass);
+          border-top-color: ${color || 'var(--primary)'};
           border-radius: 50%;
-          animation: spin 1s linear infinite;
+          animation: premium-spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .spinner-core {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 40%;
+          height: 40%;
+          background: ${color || 'var(--secondary)'};
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0.5;
+          animation: pulse-core 1.5s ease-in-out infinite;
         }
         
-        .spinner-text {
-          color: #718096;
-          font-size: 0.875rem;
-          text-align: center;
+        .spinner-msg {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
         }
         
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes premium-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-core {
+          0%, 100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.3; }
+          50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
         }
       `}</style>
     </div>

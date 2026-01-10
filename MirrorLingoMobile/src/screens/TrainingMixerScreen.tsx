@@ -206,7 +206,7 @@ export const TrainingMixerScreen: React.FC<Props> = ({ route, navigation }) => {
       }
 
       // Type 7: Pronunciation practice
-      const multisyllableWords = words.filter(w => w.length > 6);
+      const multisyllableWords = words.filter((w: string) => w.length > 6);
       if (multisyllableWords.length > 0) {
         const targetWord = multisyllableWords[0].replace(/[.,!?]/g, '');
         generatedExercises.push({

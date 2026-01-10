@@ -1,10 +1,16 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { LettaService } from './lettaService';
 
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-1'
 });
 
 const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0';
+
+// Initialize Letta on module load (non-blocking)
+LettaService.initialize().catch(() => {
+  console.log('Letta initialization failed, using localStorage fallback');
+});
 
 export interface ConversationContext {
   userId: string;
@@ -34,12 +40,19 @@ export class ConversationService {
     userMessage: string,
     context: ConversationContext
   ): Promise<ConversationResponse> {
-    const systemPrompt = this.buildSystemPrompt(context);
+    // Get Letta memory summary if available
+    const lettaMemory = await LettaService.getMemorySummary();
+    const systemPrompt = this.buildSystemPrompt(context, lettaMemory);
     const messages = this.buildMessages(userMessage, context);
 
     try {
       const response = await this.invokeModel(systemPrompt, messages);
-      return this.parseResponse(response);
+      const parsed = this.parseResponse(response);
+      
+      // Sync conversation to Letta (non-blocking)
+      LettaService.syncConversation(userMessage, parsed.message).catch(() => {});
+      
+      return parsed;
     } catch (error) {
       console.error('Conversation error:', error);
       return {
@@ -49,12 +62,14 @@ export class ConversationService {
     }
   }
 
-  private static buildSystemPrompt(context: ConversationContext): string {
+  private static buildSystemPrompt(context: ConversationContext, lettaMemory?: string): string {
     const idiolectInfo = context.userIdiolect
       ? `The user's speaking style is ${context.userIdiolect.tone} and ${context.userIdiolect.formality}. 
          They tend to use: ${context.userIdiolect.patterns.join(', ')}.
          Match their style in your responses.`
       : '';
+
+    const memoryContext = lettaMemory ? `\nPersistent Memory: ${lettaMemory}` : '';
 
     return `You are a friendly Spanish conversation tutor for MirrorLingo. 
 Your role is to have natural conversations in Spanish while helping the user practice.
@@ -67,7 +82,7 @@ RULES:
 5. Stay on topic: ${context.topic}
 6. Be encouraging and supportive
 
-${idiolectInfo}
+${idiolectInfo}${memoryContext}
 
 RESPONSE FORMAT (JSON):
 {

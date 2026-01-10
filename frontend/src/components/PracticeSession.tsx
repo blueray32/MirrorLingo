@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { SpacedRepetitionScheduler, ReviewItem, PerformanceRating } from '../utils/spacedRepetition'
 import { Phrase, IdiolectProfile } from '../types/phrases'
+import { usePronunciationAnalysis } from '../hooks/usePronunciationAnalysis'
+import { PronunciationWaveform } from './PronunciationWaveform'
 
 interface PracticeSessionProps {
   phrases: Phrase[]
@@ -15,6 +17,8 @@ interface SessionResults {
   timeSpent: number
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 export const PracticeSession: React.FC<PracticeSessionProps> = ({
   phrases,
   profile,
@@ -26,6 +30,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([])
   const [currentItem, setCurrentItem] = useState<ReviewItem | null>(null)
   const [showAnswer, setShowAnswer] = useState(false)
+  const [showPronunciation, setShowPronunciation] = useState(false)
   const [sessionStartTime] = useState(() => Date.now())
   const [sessionStats, setSessionStats] = useState({
     reviewed: 0,
@@ -33,11 +38,22 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     ratings: [] as number[]
   })
 
+  const {
+    isRecording,
+    isAnalyzing,
+    analysisResult,
+    error,
+    audioLevel,
+    startRecording,
+    stopRecording,
+    clearResults
+  } = usePronunciationAnalysis('demo-user')
+
   // Fetch translations for all phrases
   useEffect(() => {
     const fetchTranslations = async () => {
       try {
-        const response = await fetch('/api/translations', {
+        const response = await fetch(`${API_BASE_URL}/api/translations`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -100,32 +116,33 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   if (isLoading) {
     return (
       <div className="practice-session">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <h3>Preparing your session...</h3>
-          <p>Generating personalized translations</p>
+        <div className="loading-state glass-card">
+          <div className="themed-spinner"></div>
+          <h3>Curating your <span className="highlight">Personalized Session</span></h3>
+          <p>Adapting content to your speaking style...</p>
         </div>
         <style jsx>{`
           .practice-session {
             max-width: 600px;
             margin: 0 auto;
-            padding: 2rem;
+          }
+          .highlight {
+            background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
           }
           .loading-state {
             text-align: center;
-            padding: 3rem;
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: var(--space-xl);
           }
-          .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e2e8f0;
-            border-top-color: #4299e1;
+          .themed-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-glass);
+            border-top: 3px solid var(--primary);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
+            animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            margin: 0 auto var(--space-md);
           }
           @keyframes spin {
             to { transform: rotate(360deg); }
@@ -153,6 +170,8 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     if (remainingItems.length > 0) {
       setCurrentItem(remainingItems[0])
       setShowAnswer(false)
+      setShowPronunciation(false)
+      clearResults()
     } else {
       // Session complete
       const timeSpent = (Date.now() - sessionStartTime) / 1000
@@ -167,228 +186,374 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     }
   }
 
+  const handlePronunciationPractice = () => {
+    if (!currentItem) return
+
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording(currentItem.translation)
+    }
+  }
+
   if (!currentItem) {
     return (
       <div className="practice-session">
-        <div className="no-items">
-          <h3>🎉 All caught up!</h3>
-          <p>No phrases are due for review right now.</p>
-          <p>Come back later for more practice.</p>
+        <div className="empty-caught-up glass-card">
+          <h3>🎉 Perfect Timing!</h3>
+          <p>You've cleared all your pending phrases.</p>
+          <div className="divider"></div>
+          <p className="hint">Record more phrases from the dashboard to continue growing your deck.</p>
         </div>
+        <style jsx>{`
+            .empty-caught-up {
+                text-align: center;
+                padding: var(--space-xl);
+            }
+            .divider {
+                height: 1px;
+                background: var(--border-glass);
+                width: 50px;
+                margin: var(--space-md) auto;
+            }
+            .hint { color: var(--text-secondary); font-size: 0.9rem; }
+        `}</style>
       </div>
     )
   }
 
+  const progressPercent = ((sessionStats.reviewed + 1) / reviewItems.length) * 100;
+
   return (
-    <div className="practice-session">
-      <div className="session-header">
-        <div className="progress">
-          {sessionStats.reviewed + 1} of {reviewItems.length}
-        </div>
-        <div className="stats">
-          Correct: {sessionStats.correct}/{sessionStats.reviewed}
-        </div>
-      </div>
-
-      <div className="review-card">
-        <div className="english-phrase">
-          <h3>{currentItem.content}</h3>
-        </div>
-
-        {!showAnswer ? (
-          <div className="reveal-section">
-            <p>Think of the Spanish translation, then reveal the answer.</p>
-            <button
-              onClick={() => setShowAnswer(true)}
-              className="reveal-btn"
-            >
-              Show Spanish
-            </button>
-          </div>
-        ) : (
-          <div className="answer-section">
-            <div className="spanish-translation">
-              <h4>{currentItem.translation}</h4>
+    <div className="practice-session fade-in">
+      <div className="session-card glass-card">
+        <header className="card-header">
+          <div className="progress-container">
+            <div className="progress-info">
+              <span>Task {sessionStats.reviewed + 1} of {reviewItems.length}</span>
+              <span>{Math.round(progressPercent)}%</span>
             </div>
+            <div className="progress-bar-bg">
+              <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }}></div>
+            </div>
+          </div>
+        </header>
 
-            <div className="rating-buttons">
-              <p>How well did you remember this?</p>
-              <div className="rating-grid">
+        <div className="content-area">
+          {!showAnswer ? (
+            <div className="question-view">
+              <div className="phrase-display">
+                <span className="source-label">Translate from English:</span>
+                <h2>{currentItem.content}</h2>
+              </div>
+
+              <button onClick={() => setShowAnswer(true)} className="primary-btn reveal-btn">
+                Reveal Spanish Answer
+              </button>
+            </div>
+          ) : (
+            <div className="answer-view">
+              <div className="phrase-display answer">
+                <span className="source-label">Your personalized Spanish:</span>
+                <h2 className="highlight-text">{currentItem.translation}</h2>
+              </div>
+
+              <div className="options-panel">
                 <button
-                  onClick={() => handleRating(PerformanceRating.AGAIN)}
-                  className="rating-btn again"
+                  onClick={() => setShowPronunciation(!showPronunciation)}
+                  className={`tool-btn ${showPronunciation ? 'active' : ''}`}
                 >
-                  😵 Again
+                  {showPronunciation ? '🎤 Hide Tool' : '🎤 Practice Pronunciation'}
                 </button>
-                <button
-                  onClick={() => handleRating(PerformanceRating.HARD)}
-                  className="rating-btn hard"
-                >
-                  😅 Hard
-                </button>
-                <button
-                  onClick={() => handleRating(PerformanceRating.GOOD)}
-                  className="rating-btn good"
-                >
-                  😊 Good
-                </button>
-                <button
-                  onClick={() => handleRating(PerformanceRating.EASY)}
-                  className="rating-btn easy"
-                >
-                  😎 Easy
-                </button>
+
+                {showPronunciation && (
+                  <div className="pronunciation-lab glass-card">
+                    {isRecording && <PronunciationWaveform audioLevel={audioLevel} isRecording={isRecording} />}
+
+                    <button
+                      onClick={handlePronunciationPractice}
+                      disabled={isAnalyzing}
+                      className={`record-action ${isRecording ? 'recording' : ''}`}
+                    >
+                      {isRecording ? 'Stop Recording' : 'Start Recording'}
+                    </button>
+
+                    {isAnalyzing && <p className="status-text animated-dots">AI is analyzing</p>}
+
+                    {analysisResult && (
+                      <div className="analysis-box">
+                        <div className="score-ring">
+                          <span className="score-num">{analysisResult.overallScore}</span>
+                          <span className="score-label">pts</span>
+                        </div>
+                        <div className="feedback-pills">
+                          {analysisResult.feedback.strengths[0] && (
+                            <span className="pill strength">✨ {analysisResult.feedback.strengths[0]}</span>
+                          )}
+                          {analysisResult.feedback.improvements[0] && (
+                            <span className="pill improvement">💡 {analysisResult.feedback.improvements[0]}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="rating-system">
+                <p className="system-label">How well did you do?</p>
+                <div className="rating-grid">
+                  <button onClick={() => handleRating(PerformanceRating.AGAIN)} className="rate-btn rate-again">
+                    <span className="icon">↩️</span> Again
+                  </button>
+                  <button onClick={() => handleRating(PerformanceRating.HARD)} className="rate-btn rate-hard">
+                    <span className="icon">🧗</span> Hard
+                  </button>
+                  <button onClick={() => handleRating(PerformanceRating.GOOD)} className="rate-btn rate-good">
+                    <span className="icon">✅</span> Good
+                  </button>
+                  <button onClick={() => handleRating(PerformanceRating.EASY)} className="rate-btn rate-easy">
+                    <span className="icon">🚀</span> Easy
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <style jsx>{`
         .practice-session {
           max-width: 600px;
           margin: 0 auto;
-          padding: 2rem;
         }
 
-        .session-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 2rem;
-          padding: 1rem;
-          background: #f8fafc;
-          border-radius: 0.5rem;
+        .session-card {
+            padding: 0 !important;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        .progress {
-          font-weight: 600;
-          color: #4299e1;
+        .card-header {
+            padding: var(--space-lg);
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border-glass);
         }
 
-        .stats {
-          color: #718096;
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
         }
 
-        .review-card {
-          background: white;
-          border-radius: 1rem;
-          padding: 2rem;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          text-align: center;
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
         }
 
-        .english-phrase h3 {
-          color: #2d3748;
-          margin-bottom: 2rem;
-          font-size: 1.5rem;
+        .progress-bar-bg {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-full);
+            overflow: hidden;
         }
 
-        .reveal-section p {
-          color: #718096;
-          margin-bottom: 1.5rem;
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: var(--radius-full);
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .content-area {
+            padding: var(--space-xl) var(--space-lg);
+            text-align: center;
+        }
+
+        .phrase-display {
+            margin-bottom: var(--space-xl);
+        }
+
+        .phrase-display.answer {
+            animation: slideUp 0.4s ease-out;
+        }
+
+        .source-label {
+            display: block;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-weight: 800;
+        }
+
+        .phrase-display h2 {
+            font-size: 1.8rem;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .highlight-text {
+            background: linear-gradient(135deg, #a5b4fc 0%, #f9a8d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
         }
 
         .reveal-btn {
-          padding: 1rem 2rem;
-          background: linear-gradient(135deg, #4299e1, #3182ce);
-          color: white;
-          border: none;
-          border-radius: 0.75rem;
-          font-size: 1.1rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.2s;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
         }
 
-        .reveal-btn:hover {
-          transform: translateY(-2px);
+        .options-panel {
+            margin-bottom: var(--space-xl);
         }
 
-        .spanish-translation {
-          margin-bottom: 2rem;
-          padding: 1.5rem;
-          background: #e6fffa;
-          border-radius: 0.75rem;
-          border-left: 4px solid #38b2ac;
+        .tool-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            color: var(--text-secondary);
+            padding: 0.6rem 1.2rem;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all var(--transition-fast);
         }
 
-        .spanish-translation h4 {
-          color: #2d3748;
-          font-size: 1.3rem;
-          margin: 0;
+        .tool-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
         }
 
-        .rating-buttons p {
-          color: #4a5568;
-          margin-bottom: 1rem;
+        .pronunciation-lab {
+            margin-top: var(--space-md);
+            padding: var(--space-md) !important;
+            background: rgba(0, 0, 0, 0.2) !important;
+        }
+
+        .record-action {
+            margin-top: var(--space-md);
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-full);
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .record-action.recording {
+            background: var(--danger);
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .analysis-box {
+            margin-top: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            text-align: left;
+            padding: var(--space-md);
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: var(--radius-md);
+        }
+
+        .score-ring {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .score-num { font-size: 1.1rem; font-weight: 800; line-height: 1; color: var(--accent); }
+        .score-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.7; }
+
+        .feedback-pills {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .pill {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+        }
+
+        .pill.strength { background: rgba(16, 185, 129, 0.1); color: var(--accent); }
+        .pill.improvement { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+
+        .rating-system {
+            border-top: 1px solid var(--border-glass);
+            padding-top: var(--space-lg);
+        }
+
+        .system-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-md);
+            font-weight: 600;
         }
 
         .rating-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 1rem;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
         }
 
-        .rating-btn {
-          padding: 1rem;
-          border: none;
-          border-radius: 0.75rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
+        .rate-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.8rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
         }
 
-        .rating-btn.again {
-          background: #fed7d7;
-          color: #c53030;
+        .rate-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
         }
 
-        .rating-btn.hard {
-          background: #feebc8;
-          color: #dd6b20;
+        .rate-again:hover { border-color: var(--danger); color: var(--danger); }
+        .rate-hard:hover { border-color: var(--warning); color: var(--warning); }
+        .rate-good:hover { border-color: var(--secondary); color: var(--secondary); }
+        .rate-easy:hover { border-color: var(--accent); color: var(--accent); }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
-        .rating-btn.good {
-          background: #c6f6d5;
-          color: #38a169;
-        }
+        .status-text { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
 
-        .rating-btn.easy {
-          background: #bee3f8;
-          color: #3182ce;
-        }
-
-        .rating-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .no-items {
-          text-align: center;
-          padding: 3rem;
-          background: white;
-          border-radius: 1rem;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .no-items h3 {
-          color: #38a169;
-          margin-bottom: 1rem;
-        }
-
-        .no-items p {
-          color: #718096;
-          margin-bottom: 0.5rem;
-        }
-
-        @media (max-width: 768px) {
-          .practice-session {
-            padding: 1rem;
-          }
-
-          .rating-grid {
-            grid-template-columns: 1fr;
-          }
+        @media (max-width: 480px) {
+            .rating-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>

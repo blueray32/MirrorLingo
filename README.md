@@ -189,6 +189,26 @@ cd infrastructure/scripts
 - **Staging**: AWS with real services
 - **Production**: Multi-region deployment
 
+### Letta Memory Integration (Optional)
+For persistent cross-session memory, configure Letta:
+
+```bash
+# Add to .env
+LETTA_ENABLED=true
+LETTA_BASE_URL=http://localhost:8283  # Self-hosted
+LETTA_AGENT_NAME=mirrorlingo_tutor
+
+# For hosted Letta (production)
+LETTA_API_KEY=lk-your-api-key
+```
+
+Start local Letta server: `pip install letta && letta server`
+
+Benefits:
+- Cross-device memory persistence
+- Long-term idiolect learning
+- AI tutor builds relationship over time
+
 ## 🔮 Roadmap
 
 ### Phase 1 (Post-Hackathon)
@@ -361,6 +381,12 @@ MirrorLingo/
 - **Voice Integration**: Record messages and hear AI responses with text-to-speech
 - **Contextual Learning**: Maintains conversation context and provides gentle corrections
 - **Mobile Optimized**: Responsive chat interface for mobile and desktop
+
+### ✅ Letta Memory Integration (NEW)
+- **Persistent Memory**: Cross-session learning powered by Letta's stateful agent framework
+- **Idiolect Evolution**: AI tutor builds long-term understanding of your speaking patterns
+- **Cross-Device Sync**: Your learning progress follows you across devices
+- **Graceful Fallback**: Works with localStorage when Letta unavailable
 
 ### ✅ Native Mobile Application
 - **React Native Architecture**: Cross-platform iOS and Android support

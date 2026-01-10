@@ -8,7 +8,7 @@ import {
     Phrase,
     IdiolectProfile,
     IdiolectAnalysis
-} from '../../src/types/phrases';
+} from '../../types/phrases';
 
 interface PhrasesRequestBody {
     phrases: string[];

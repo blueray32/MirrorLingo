@@ -4,6 +4,7 @@ export interface Phrase {
   userId: string;
   phraseId: string;
   englishText: string;
+  spanishText?: string;
   intent: IntentCategory;
   createdAt: string;
   updatedAt: string;

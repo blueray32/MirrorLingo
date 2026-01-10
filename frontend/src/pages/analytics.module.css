@@ -1,0 +1,18 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.emptyState h2 {
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.emptyState p {
+  color: var(--text-secondary);
+}

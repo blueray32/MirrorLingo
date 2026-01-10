@@ -26,6 +26,10 @@ MirrorLingo is a web application that learns a user's everyday English speaking 
 - **Dual Translation System**: Provides both literal and natural Spanish translations with explanations
 - **Intent Clustering**: Groups phrases by context (work, family, errands) for organized learning
 - **Spaced Repetition Practice**: Adaptive scheduling based on user performance and retention
+- **Real-Time Pronunciation Feedback**: Advanced pronunciation analysis with regional accent support
+- **Regional Spanish Accents**: Choose from 5 Spanish accent variants (Spain, Mexico, Argentina, Colombia, Neutral)
+- **Phoneme-Specific Training**: Targeted practice for difficult Spanish sounds (rr, ñ, ll, etc.)
+- **Integrated Pronunciation Practice**: Pronunciation coaching within spaced repetition sessions
 - **Mistake Coaching**: Identifies recurring errors and provides targeted micro-lessons
 - **Audio Pronunciation**: Text-to-speech for Spanish phrases to aid pronunciation learning
 - **Progress Tracking**: Visual feedback on learning progress and phrase mastery
@@ -45,9 +49,10 @@ MirrorLingo is a web application that learns a user's everyday English speaking 
 5. **Learning**: User reviews dual translations, explanations, and cultural context
 6. **Style Matching**: Visual feedback shows how well Spanish preserves their personality
 7. **Practice**: Daily spaced repetition sessions with personalized Spanish phrases
-8. **Feedback**: System tracks performance and adjusts difficulty/frequency
-9. **Expansion**: User adds new phrases over time, building their personal Spanish vocabulary
-10. **Mastery**: Graduated phrases become part of user's active Spanish vocabulary
+8. **Pronunciation Practice**: Optional pronunciation coaching with regional accent selection
+9. **Feedback**: System tracks performance and adjusts difficulty/frequency
+10. **Expansion**: User adds new phrases over time, building their personal Spanish vocabulary
+11. **Mastery**: Graduated phrases become part of user's active Spanish vocabulary
 
 ## Success Criteria
 - **Engagement**: Users complete daily practice sessions 5+ days per week

@@ -4,7 +4,7 @@ interface UseAudioApiReturn {
   isUploading: boolean
   uploadError: string | null
   transcriptionResult: TranscriptionResult | null
-  uploadAudio: (audioBlob: Blob, userId: string) => Promise<boolean>
+  uploadAudio: (audioBlob: Blob, userId: string, transcript?: string) => Promise<boolean>
   clearError: () => void
 }
 
@@ -30,7 +30,7 @@ interface SpeechMetrics {
   averageConfidence: number
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 export const useAudioApi = (): UseAudioApiReturn => {
   const [isUploading, setIsUploading] = useState(false)
@@ -41,15 +41,15 @@ export const useAudioApi = (): UseAudioApiReturn => {
     setUploadError(null)
   }, [])
 
-  const uploadAudio = useCallback(async (audioBlob: Blob, userId: string): Promise<boolean> => {
+  const uploadAudio = useCallback(async (audioBlob: Blob, userId: string, transcript?: string): Promise<boolean> => {
     setIsUploading(true)
     setUploadError(null)
 
     try {
       // Convert blob to base64
       const base64Audio = await blobToBase64(audioBlob)
-      
-      const response = await fetch('/api/audio', {
+
+      const response = await fetch(`${API_BASE_URL}/api/audio`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +57,8 @@ export const useAudioApi = (): UseAudioApiReturn => {
         },
         body: JSON.stringify({
           audioData: base64Audio,
-          contentType: audioBlob.type
+          contentType: audioBlob.type,
+          transcript: transcript // Send locally generated transcript if available
         })
       })
 
@@ -66,7 +67,7 @@ export const useAudioApi = (): UseAudioApiReturn => {
       }
 
       const result = await response.json()
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Upload failed')
       }

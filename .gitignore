@@ -35,3 +35,6 @@ backend-build/
 
 # Examples
 examples/agentic-coding-course-main/
+
+# Examples (reference only)
+examples/

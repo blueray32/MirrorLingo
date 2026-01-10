@@ -17,10 +17,10 @@ class NotificationService {
 
   configure() {
     PushNotification.configure({
-      onRegister: (token) => {
+      onRegister: (token: any) => {
         console.log('Push notification token:', token);
       },
-      onNotification: (notification) => {
+      onNotification: (notification: any) => {
         console.log('Notification received:', notification);
       },
       permissions: {
@@ -43,7 +43,7 @@ class NotificationService {
         importance: 4,
         vibrate: true,
       },
-      (created) => console.log(`Channel created: ${created}`)
+      (created: any) => console.log(`Channel created: ${created}`)
     );
   }
 
@@ -76,7 +76,7 @@ class NotificationService {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0)) % 2147483647;
-    PushNotification.cancelLocalNotification(notificationId);
+    PushNotification.cancelLocalNotification(notificationId.toString());
   }
 
   scheduleDaily(hour: number = 19, minute: number = 0) {
@@ -90,7 +90,7 @@ class NotificationService {
     }
 
     PushNotification.localNotificationSchedule({
-      id: 999, // Fixed ID for daily reminder
+      id: 'daily-reminder', // Fixed ID for daily reminder
       channelId: 'spaced-repetition',
       title: '🎯 Daily Spanish Practice',
       message: 'Keep your learning streak alive! Practice your personalized phrases.',
@@ -106,7 +106,7 @@ class NotificationService {
   }
 
   cancelDailyReminder() {
-    PushNotification.cancelLocalNotification(999);
+    PushNotification.cancelLocalNotification('daily-reminder');
   }
 
   requestPermissions() {
@@ -115,7 +115,7 @@ class NotificationService {
 
   checkPermissions() {
     return new Promise((resolve) => {
-      PushNotification.checkPermissions((permissions) => {
+      PushNotification.checkPermissions((permissions: any) => {
         resolve(permissions);
       });
     });

@@ -29,7 +29,7 @@ import {
 } from '../types/phrases';
 
 // API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 /**
  * Return type for usePhrasesApi hook
@@ -73,7 +73,7 @@ export const usePhrasesApi = (userId: string): UsePhrasesApiReturn => {
 
       const cleanPhrases = phrasesInput.filter(p => p.trim().length > 0);
       // Make API call to backend
-      const response = await fetch('/api/phrases', {
+      const response = await fetch(`${API_BASE_URL}/api/phrases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ export const usePhrasesApi = (userId: string): UsePhrasesApiReturn => {
     setError(null);
 
     try {
-      const response = await fetch('/api/phrases', {
+      const response = await fetch(`${API_BASE_URL}/api/phrases`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

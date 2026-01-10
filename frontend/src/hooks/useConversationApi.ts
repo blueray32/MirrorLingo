@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ConversationMessage, ConversationTopic, ConversationResponse, TOPIC_STARTERS } from '../types/conversation';
 
 interface UseConversationApiReturn {
@@ -11,6 +11,9 @@ interface UseConversationApiReturn {
   clearConversation: () => void;
 }
 
+const STORAGE_KEY = 'mirrorlingo-conversation-history';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
 export const useConversationApi = (userId: string): UseConversationApiReturn => {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +21,36 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
   const [currentTopic, setCurrentTopic] = useState<ConversationTopic>('free_conversation');
   const messagesRef = useRef<ConversationMessage[]>([]);
   const idCounter = useRef(0);
+
+  // Load conversation history on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`${STORAGE_KEY}-${userId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setMessages(parsed.messages || []);
+        setCurrentTopic(parsed.topic || 'free_conversation');
+        messagesRef.current = parsed.messages || [];
+      }
+    } catch (error) {
+      console.warn('Failed to load conversation history:', error);
+    }
+  }, [userId]);
+
+  // Save conversation history when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(`${STORAGE_KEY}-${userId}`, JSON.stringify({
+          messages,
+          topic: currentTopic,
+          lastUpdated: new Date().toISOString()
+        }));
+      } catch (error) {
+        console.warn('Failed to save conversation history:', error);
+      }
+    }
+  }, [messages, currentTopic, userId]);
 
   const generateId = () => `msg-${Date.now()}-${++idCounter.current}`;
 
@@ -38,7 +71,13 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
     setMessages([]);
     messagesRef.current = [];
     setError(null);
-  }, []);
+    // Clear from localStorage
+    try {
+      localStorage.removeItem(`${STORAGE_KEY}-${userId}`);
+    } catch (error) {
+      console.warn('Failed to clear conversation history:', error);
+    }
+  }, [userId]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -59,7 +98,7 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
     setError(null);
 
     try {
-      const response = await fetch('/api/conversation', {
+      const response = await fetch(`${API_BASE_URL}/api/conversation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +117,7 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
       }
 
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to get response');
       }
@@ -97,7 +136,34 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
       });
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
+      console.error('Conversation API error:', err);
+
+      // Provide specific error messages
+      let errorMessage = 'Failed to send message. ';
+      if (err instanceof Error) {
+        if (err.message.includes('Failed to fetch')) {
+          errorMessage += 'Please check your internet connection.';
+        } else if (err.message.includes('429')) {
+          errorMessage += 'Too many requests. Please wait a moment.';
+        } else if (err.message.includes('500')) {
+          errorMessage += 'Server error. Please try again later.';
+        } else if (err.message.includes('401')) {
+          errorMessage += 'Authentication required. Please refresh the page.';
+        } else {
+          errorMessage += err.message;
+        }
+      } else {
+        errorMessage += 'Please try again.';
+      }
+
+      setError(errorMessage);
+
+      // Remove user message on error
+      setMessages(prev => {
+        const filtered = prev.filter(msg => msg.id !== userMessage.id);
+        messagesRef.current = filtered;
+        return filtered;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -121,10 +187,10 @@ function generateMockResponse(
   history: ConversationMessage[]
 ): ConversationResponse {
   const lowerMessage = userMessage.toLowerCase();
-  
+
   // Detect common mistakes and provide corrections
   let correction: ConversationResponse['correction'];
-  
+
   if (lowerMessage.includes('yo soy bueno')) {
     correction = {
       original: 'yo soy bueno',

@@ -44,6 +44,13 @@ So that <benefit/value>
 
 **Use specialized agents and parallel analysis:**
 
+**0. AI Service Audit (Required for AI-powered features)**
+
+- Check `bedrockService.ts` for existing AI integration patterns
+- Identify current AI service usage (Amazon Bedrock, AWS Transcribe, etc.)
+- Do NOT plan new AI services (OpenAI, etc.) - use existing Bedrock patterns
+- Document existing request/response patterns to follow
+
 **1. Project Structure Analysis**
 
 - Detect primary language(s), frameworks, and runtime versions

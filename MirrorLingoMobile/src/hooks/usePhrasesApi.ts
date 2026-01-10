@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { mirrorLingoAPI, PhraseAnalysis } from '../services/api';
+import { mirrorLingoAPI, PhraseAnalysis, LanguagePattern } from '../services/api';
 
 export interface UsePhrasesApiReturn {
   phrases: any[];
@@ -28,9 +28,9 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
           englishText: analysis.phrase,
           intent: 'casual',
           analysis: {
-            tone: analysis.idiolectProfile.tone,
-            formality: analysis.idiolectProfile.formality,
-            patterns: analysis.idiolectProfile.patterns.map(p => ({ description: p })),
+            tone: analysis.idiolectProfile.overallTone,
+            formality: analysis.idiolectProfile.overallFormality,
+            patterns: analysis.idiolectProfile.commonPatterns.map((p: LanguagePattern) => ({ description: p.description })),
             confidence: 0.85
           }
         }));
@@ -59,9 +59,9 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
         englishText: analysis.phrase,
         intent: 'casual',
         analysis: {
-          tone: analysis.idiolectProfile.tone,
-          formality: analysis.idiolectProfile.formality,
-          patterns: analysis.idiolectProfile.patterns.map(p => ({ description: p })),
+          tone: analysis.idiolectProfile.overallTone,
+          formality: analysis.idiolectProfile.overallFormality,
+          patterns: analysis.idiolectProfile.commonPatterns.map((p: LanguagePattern) => ({ description: p.description })),
           confidence: 0.85
         }
       };
@@ -92,9 +92,9 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
         englishText: analysis.phrase,
         intent: 'casual',
         analysis: {
-          tone: analysis.idiolectProfile.tone,
-          formality: analysis.idiolectProfile.formality,
-          patterns: analysis.idiolectProfile.patterns.map(p => ({ description: p })),
+          tone: analysis.idiolectProfile.overallTone,
+          formality: analysis.idiolectProfile.overallFormality,
+          patterns: analysis.idiolectProfile.commonPatterns.map((p: LanguagePattern) => ({ description: p.description })),
           confidence: 0.85
         }
       }));

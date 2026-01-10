@@ -25,6 +25,9 @@
 - **TranscriptionService**: Advanced AWS Transcribe integration with speech metrics
 - **BackgroundRecorder**: Continuous voice activity detection and phrase segmentation
 - **SpanishTranslationService**: AI-powered translation with style preservation
+- **PronunciationAnalysisService**: Real-time pronunciation feedback with accent-specific coaching
+- **AccentProfileManager**: Regional Spanish accent selection and phoneme analysis
+- **SpeechRecognitionUtils**: Web Speech API integration with browser compatibility handling
 
 ## Development Environment
 **Required Tools**:
@@ -46,8 +49,21 @@
 - ESLint + Prettier for consistent code formatting
 - Functional components with React hooks
 - Clear separation of concerns between components
+- Shared type definitions to prevent duplication
+- Comprehensive input validation and sanitization
 
 **API Standards**:
+- RESTful API design with consistent naming
+- Proper HTTP status codes and error handling
+- Input validation and sanitization for security
+- Structured JSON responses with generic error messages
+- CORS configuration for cross-origin requests
+
+**Security Standards**:
+- Input sanitization to prevent injection attacks
+- Generic error messages to avoid information disclosure
+- Resource cleanup to prevent memory leaks
+- Proper authentication and authorization patterns
 - RESTful API design with consistent naming
 - Proper HTTP status codes and error handling
 - Input validation and sanitization
@@ -71,6 +87,26 @@
 - **AI Service Consistency**: Use Bedrock for all AI operations to maintain architectural patterns
 - **Functional Demonstrations**: All features must be user-testable in demo environment
 - **Production Readiness Path**: Clear upgrade path from demo to production implementation
+
+## AI Service Integration Pattern
+**Service Audit Requirement**: Before planning any AI-powered feature, audit existing integrations:
+- Check `bedrockService.ts` for existing AI patterns
+- Use Amazon Bedrock (Claude) for all LLM operations - do NOT introduce new AI services
+- Follow established request/response patterns from existing implementations
+
+## Conversation State Management
+**State Persistence Pattern**:
+```typescript
+interface ConversationState {
+  messages: ConversationMessage[];
+  userProfile: UserProfile;
+  topic: ConversationTopic;
+  sessionId: string;
+}
+```
+- Persist conversation state to localStorage for demo scope
+- Include automatic save on message send and restore on component mount
+- Clear state on topic change or explicit user action
 
 ## Deployment Process
 **AWS-First Deployment**:

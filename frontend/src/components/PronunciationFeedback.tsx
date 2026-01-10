@@ -1,571 +1,443 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react';
+import { usePronunciationAnalysis } from '../hooks/usePronunciationAnalysis';
+import { PronunciationWaveform } from './PronunciationWaveform';
 
 interface PronunciationFeedbackProps {
-  spanishPhrase: string
-  englishPhrase: string
-  onComplete: (score: number) => void
+  spanishPhrase: string;
+  englishPhrase: string;
+  onComplete: (score: number) => void;
+  userId?: string;
+  enableRealTimeAnalysis?: boolean;
+}
+
+interface PronunciationFeedback {
+  overallScore: number;
+  accuracy: number;
+  fluency: number;
+  pronunciation: number;
+  transcription: string;
+  tips: string[];
 }
 
 export const PronunciationFeedback: React.FC<PronunciationFeedbackProps> = ({
   spanishPhrase,
   englishPhrase,
-  onComplete
+  onComplete,
+  userId = 'demo-user-123',
+  enableRealTimeAnalysis = true
 }) => {
-  const [isRecording, setIsRecording] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null)
-  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null)
+  // Legacy recording state for backward compatibility
+  const [isRecording, setIsRecording] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaRecorderRef.current = new MediaRecorder(stream)
-      audioChunksRef.current = []
+  // Real-time pronunciation analysis
+  const {
+    isRecording: isRealTimeRecording,
+    isAnalyzing: isRealTimeAnalyzing,
+    isSupported,
+    hasPermission,
+    currentTranscript,
+    analysisResult,
+    error: realTimeError,
+    audioLevel,
+    startRecording: startRealTimeRecording,
+    stopRecording: stopRealTimeRecording,
+    clearResults,
+    requestPermission
+  } = usePronunciationAnalysis(userId);
 
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data)
-      }
+  // Use real-time analysis if enabled and supported
+  const shouldUseRealTime = enableRealTimeAnalysis && isSupported;
+  const currentIsRecording = shouldUseRealTime ? isRealTimeRecording : isRecording;
+  const currentIsAnalyzing = shouldUseRealTime ? isRealTimeAnalyzing : isAnalyzing;
 
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
-        const url = URL.createObjectURL(audioBlob)
-        setPlaybackUrl(url)
-        
-        setIsAnalyzing(true)
-        // Simulate pronunciation analysis
-        setTimeout(() => {
-          const mockFeedback = generateMockFeedback(spanishPhrase)
-          setFeedback(mockFeedback)
-          setIsAnalyzing(false)
-          onComplete(mockFeedback.overallScore)
-        }, 2000)
-
-        stream.getTracks().forEach(track => track.stop())
-      }
-
-      mediaRecorderRef.current.start()
-      setIsRecording(true)
-    } catch {
-      alert('Could not access microphone')
+  // Handle real-time analysis completion
+  React.useEffect(() => {
+    if (analysisResult && !isRealTimeRecording && !isRealTimeAnalyzing) {
+      onComplete(analysisResult.overallScore);
     }
-  }
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-    }
-  }
+  }, [analysisResult, isRealTimeRecording, isRealTimeAnalyzing, onComplete]);
 
   const playExample = () => {
-    // Text-to-speech for Spanish phrase
-    const utterance = new SpeechSynthesisUtterance(spanishPhrase)
-    utterance.lang = 'es-ES'
-    utterance.rate = 0.8
-    speechSynthesis.speak(utterance)
-  }
+    const utterance = new SpeechSynthesisUtterance(spanishPhrase);
+    utterance.lang = 'es-ES';
+    utterance.rate = 0.8;
+    speechSynthesis.speak(utterance);
+  };
 
-  const playRecording = () => {
-    if (playbackUrl) {
-      const audio = new Audio(playbackUrl)
-      audio.play()
+  const startRecording = async () => {
+    if (shouldUseRealTime) {
+      if (!hasPermission) {
+        const granted = await requestPermission();
+        if (!granted) {
+          alert('Microphone permission is required for pronunciation analysis');
+          return;
+        }
+      }
+      await startRealTimeRecording(spanishPhrase);
+    } else {
+      // Legacy recording method
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        audioChunksRef.current = [];
+
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+
+        mediaRecorderRef.current.onstop = async () => {
+          setIsAnalyzing(true);
+          setTimeout(() => {
+            const mockFeedback = generateMockFeedback(spanishPhrase);
+            setFeedback(mockFeedback);
+            setIsAnalyzing(false);
+            onComplete(mockFeedback.overallScore);
+          }, 2000);
+
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+      } catch {
+        alert('Could not access microphone');
+      }
     }
-  }
+  };
 
-  if (isAnalyzing) {
+  const stopRecording = () => {
+    if (shouldUseRealTime) {
+      stopRealTimeRecording();
+    } else if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Display results from either real-time or legacy analysis
+  const currentFeedback = shouldUseRealTime ? analysisResult : feedback;
+  const showError = shouldUseRealTime ? realTimeError : null;
+
+  if (currentIsAnalyzing) {
     return (
-      <div className="pronunciation-feedback analyzing">
-        <div className="analyzing-animation">
-          <div className="sound-waves">
-            <div className="wave"></div>
-            <div className="wave"></div>
-            <div className="wave"></div>
-          </div>
-          <h3>Analyzing Your Pronunciation...</h3>
-          <p>Comparing your speech to native Spanish patterns</p>
+      <div className="pronunciation-feedback analyzing glass-card">
+        <div className="analyzing-view">
+          <div className="themed-spinner big"></div>
+          <h3>Analyzing your <span className="highlight">Accent</span></h3>
+          <p>Running advanced phonic comparisons...</p>
+
+          {shouldUseRealTime && (
+            <div className="waveform-display">
+              <PronunciationWaveform
+                audioLevel={audioLevel}
+                isRecording={false}
+                width={200}
+                height={40}
+              />
+            </div>
+          )}
         </div>
-
-        <style jsx>{`
-          .pronunciation-feedback.analyzing {
-            background: white;
-            border-radius: 1rem;
-            padding: 3rem 2rem;
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          }
-
-          .sound-waves {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 0.25rem;
-            margin-bottom: 2rem;
-          }
-
-          .wave {
-            width: 4px;
-            height: 40px;
-            background: linear-gradient(to top, #667eea, #764ba2);
-            border-radius: 2px;
-            animation: wave 1.5s ease-in-out infinite;
-          }
-
-          .wave:nth-child(2) {
-            animation-delay: 0.2s;
-          }
-
-          .wave:nth-child(3) {
-            animation-delay: 0.4s;
-          }
-
-          @keyframes wave {
-            0%, 100% { height: 20px; }
-            50% { height: 60px; }
-          }
-
-          .analyzing-animation h3 {
-            color: #2d3748;
-            margin-bottom: 0.5rem;
-          }
-
-          .analyzing-animation p {
-            color: #718096;
-          }
-        `}</style>
+        <style jsx>{styles}</style>
       </div>
-    )
+    );
   }
 
-  if (feedback) {
+  if (currentFeedback) {
+    const score = currentFeedback.overallScore;
+
     return (
-      <div className="pronunciation-feedback results">
-        <div className="feedback-header">
-          <h3>🎯 Pronunciation Analysis</h3>
-          <div className="overall-score">
-            <div className="score-circle">
-              <span className="score-value">{feedback.overallScore}</span>
-              <span className="score-max">/100</span>
+      <div className="pronunciation-feedback results glass-card">
+        <header className="results-header">
+          <div className="score-main">
+            <div className="score-radial">
+              <span className="score-text">{score}</span>
+              <span className="score-sub">pts</span>
             </div>
-            <div className="score-label">Overall Score</div>
-          </div>
-        </div>
-
-        <div className="feedback-details">
-          <div className="phrase-comparison">
-            <div className="target-phrase">
-              <h4>Target Phrase</h4>
-              <p>{spanishPhrase}</p>
-              <button onClick={playExample} className="play-btn">
-                🔊 Play Example
-              </button>
-            </div>
-            <div className="your-pronunciation">
-              <h4>Your Pronunciation</h4>
-              <p>{feedback.transcription}</p>
-              <button onClick={playRecording} className="play-btn" disabled={!playbackUrl}>
-                🎤 Play Recording
-              </button>
+            <div className="title-area">
+              <h3>Pronunciation Score</h3>
+              <p className="status-text">{score > 85 ? 'Excelente!' : score > 70 ? 'Muy bien!' : 'Sigue practicando!'}</p>
             </div>
           </div>
+        </header>
 
-          <div className="detailed-scores">
-            <div className="score-item">
-              <span className="score-label">Accuracy</span>
-              <div className="score-bar">
-                <div className="score-fill" style={{ width: `${feedback.accuracy}%` }}></div>
-              </div>
-              <span className="score-percent">{feedback.accuracy}%</span>
-            </div>
-            <div className="score-item">
-              <span className="score-label">Fluency</span>
-              <div className="score-bar">
-                <div className="score-fill" style={{ width: `${feedback.fluency}%` }}></div>
-              </div>
-              <span className="score-percent">{feedback.fluency}%</span>
-            </div>
-            <div className="score-item">
-              <span className="score-label">Pronunciation</span>
-              <div className="score-bar">
-                <div className="score-fill" style={{ width: `${feedback.pronunciation}%` }}></div>
-              </div>
-              <span className="score-percent">{feedback.pronunciation}%</span>
-            </div>
+        <div className="results-body">
+          <div className="metric-bars">
+            {['Accuracy', 'Fluency', 'Enunciation'].map((label, idx) => {
+              const value = idx === 0 ? currentFeedback.accuracy :
+                idx === 1 ? currentFeedback.fluency :
+                  currentFeedback.pronunciation;
+              return (
+                <div key={label} className="metric-row">
+                  <div className="metric-header">
+                    <span className="metric-label">{label}</span>
+                    <span className="metric-value">{value}%</span>
+                  </div>
+                  <div className="metric-track">
+                    <div className="metric-fill" style={{ width: `${value}%` }}></div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="improvement-tips">
-            <h4>💡 Improvement Tips</h4>
-            <ul>
-              {feedback.tips.map((tip, index) => (
-                <li key={index}>{tip}</li>
-              ))}
+          <div className="tips-section">
+            <h4>💡 Refinement Tips</h4>
+            <ul className="tips-list">
+              {(() => {
+                const tips = 'tips' in currentFeedback ? currentFeedback.tips : currentFeedback.feedback.specificTips;
+                return tips.map((tip, index) => (
+                  <li key={index} className="tip-item">
+                    <span className="tip-bullet">•</span>
+                    <span className="tip-text">{tip}</span>
+                  </li>
+                ));
+              })()}
             </ul>
           </div>
         </div>
 
-        <style jsx>{`
-          .pronunciation-feedback.results {
-            background: white;
-            border-radius: 1rem;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          }
-
-          .feedback-header {
-            background: linear-gradient(135deg, #48bb78, #38a169);
-            color: white;
-            padding: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .feedback-header h3 {
-            margin: 0;
-            font-size: 1.5rem;
-          }
-
-          .overall-score {
-            text-align: center;
-          }
-
-          .score-circle {
-            width: 80px;
-            height: 80px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 0.5rem;
-          }
-
-          .score-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-          }
-
-          .score-max {
-            font-size: 0.875rem;
-            opacity: 0.8;
-          }
-
-          .score-label {
-            font-size: 0.875rem;
-            opacity: 0.9;
-          }
-
-          .feedback-details {
-            padding: 2rem;
-          }
-
-          .phrase-comparison {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
-          }
-
-          .target-phrase, .your-pronunciation {
-            background: #f8fafc;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-          }
-
-          .target-phrase h4, .your-pronunciation h4 {
-            color: #2d3748;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-          }
-
-          .target-phrase p, .your-pronunciation p {
-            color: #4a5568;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            font-style: italic;
-          }
-
-          .play-btn {
-            background: #4299e1;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-          }
-
-          .play-btn:disabled {
-            background: #a0aec0;
-            cursor: not-allowed;
-          }
-
-          .detailed-scores {
-            margin-bottom: 2rem;
-          }
-
-          .score-item {
-            display: grid;
-            grid-template-columns: 100px 1fr auto;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-          }
-
-          .score-item .score-label {
-            color: #4a5568;
-            font-weight: 500;
-          }
-
-          .score-bar {
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 4px;
-            overflow: hidden;
-          }
-
-          .score-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #48bb78, #38a169);
-            transition: width 0.5s ease;
-          }
-
-          .score-percent {
-            color: #38a169;
-            font-weight: 600;
-            font-size: 0.875rem;
-          }
-
-          .improvement-tips h4 {
-            color: #2d3748;
-            margin-bottom: 1rem;
-          }
-
-          .improvement-tips ul {
-            color: #4a5568;
-            line-height: 1.6;
-          }
-
-          .improvement-tips li {
-            margin-bottom: 0.5rem;
-          }
-
-          @media (max-width: 768px) {
-            .feedback-header {
-              flex-direction: column;
-              gap: 1rem;
-            }
-
-            .phrase-comparison {
-              grid-template-columns: 1fr;
-            }
-
-            .score-item {
-              grid-template-columns: 1fr;
-              gap: 0.5rem;
-            }
-          }
-        `}</style>
+        <div className="results-footer">
+          <button onClick={clearResults || (() => setFeedback(null))} className="secondary-btn">
+            Try Again
+          </button>
+        </div>
+        <style jsx>{styles}</style>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="pronunciation-feedback">
+    <div className="pronunciation-feedback glass-card fade-in">
       <div className="practice-header">
-        <h3>🎤 Pronunciation Practice</h3>
-        <p>Practice saying this Spanish phrase and get instant feedback</p>
-      </div>
-
-      <div className="phrase-display">
-        <div className="english-phrase">
-          <h4>English:</h4>
-          <p>{englishPhrase}</p>
-        </div>
-        <div className="spanish-phrase">
-          <h4>Spanish:</h4>
-          <p>{spanishPhrase}</p>
-          <button onClick={playExample} className="example-btn">
-            🔊 Hear Example
-          </button>
-        </div>
-      </div>
-
-      <div className="recording-controls">
-        {!isRecording ? (
-          <button onClick={startRecording} className="record-btn start">
-            🎤 Start Recording
-          </button>
-        ) : (
-          <button onClick={stopRecording} className="record-btn stop">
-            ⏹️ Stop Recording
-          </button>
+        <span className="badge-pill">Accent Tool</span>
+        <h3>Mirror Your Pronunciation</h3>
+        <p>Record the Spanish phrase below to receive your AI score.</p>
+        {showError && (
+          <div className="error-banner">
+            <p>⚠️ {showError}</p>
+          </div>
         )}
       </div>
 
-      <div className="practice-tips">
-        <h4>💡 Pronunciation Tips</h4>
-        <ul>
-          <li>Speak clearly and at a natural pace</li>
-          <li>Try to match the rhythm and intonation</li>
-          <li>Don't worry about perfection - practice makes progress!</li>
-        </ul>
+      <div className="phrase-highlight glass-card">
+        <div className="spanish-text-group">
+          <span className="label">Target Phrase</span>
+          <p className="spanish-text">{spanishPhrase}</p>
+          <button onClick={playExample} className="audio-play-btn">
+            🔊 Play Guide
+          </button>
+        </div>
       </div>
 
-      <style jsx>{`
-        .pronunciation-feedback {
-          background: white;
-          border-radius: 1rem;
-          padding: 2rem;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
+      <div className="interaction-zone">
+        {shouldUseRealTime && (
+          <div className="waveform-box">
+            <PronunciationWaveform
+              audioLevel={audioLevel}
+              isRecording={currentIsRecording}
+              width={200}
+              height={60}
+            />
+          </div>
+        )}
 
-        .practice-header {
-          text-align: center;
-          margin-bottom: 2rem;
-        }
+        <div className="control-center">
+          {!currentIsRecording ? (
+            <button onClick={startRecording} className="record-action start">
+              <span className="dot"></span> Start Practice
+            </button>
+          ) : (
+            <button onClick={stopRecording} className="record-action stop">
+              <span className="square"></span> Stop & Analyze
+            </button>
+          )}
+        </div>
+      </div>
 
-        .practice-header h3 {
-          color: #2d3748;
-          margin-bottom: 0.5rem;
-        }
-
-        .practice-header p {
-          color: #718096;
-        }
-
-        .phrase-display {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 2rem;
-          margin-bottom: 2rem;
-        }
-
-        .english-phrase, .spanish-phrase {
-          background: #f8fafc;
-          padding: 1.5rem;
-          border-radius: 0.75rem;
-        }
-
-        .spanish-phrase {
-          background: #e6fffa;
-          border-left: 4px solid #38b2ac;
-        }
-
-        .english-phrase h4, .spanish-phrase h4 {
-          color: #2d3748;
-          margin-bottom: 0.5rem;
-          font-size: 1rem;
-        }
-
-        .english-phrase p, .spanish-phrase p {
-          color: #4a5568;
-          font-size: 1.2rem;
-          margin-bottom: 1rem;
-          font-weight: 500;
-        }
-
-        .example-btn {
-          background: #38b2ac;
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 0.5rem;
-          cursor: pointer;
-          font-size: 0.875rem;
-        }
-
-        .recording-controls {
-          text-align: center;
-          margin-bottom: 2rem;
-        }
-
-        .record-btn {
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 600;
-          border: none;
-          border-radius: 0.75rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          min-width: 200px;
-        }
-
-        .record-btn.start {
-          background: linear-gradient(135deg, #48bb78, #38a169);
-          color: white;
-        }
-
-        .record-btn.stop {
-          background: linear-gradient(135deg, #e53e3e, #c53030);
-          color: white;
-        }
-
-        .record-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .practice-tips {
-          background: #f0f9ff;
-          padding: 1.5rem;
-          border-radius: 0.75rem;
-        }
-
-        .practice-tips h4 {
-          color: #1e40af;
-          margin-bottom: 1rem;
-        }
-
-        .practice-tips ul {
-          color: #1e3a8a;
-          line-height: 1.6;
-        }
-
-        .practice-tips li {
-          margin-bottom: 0.5rem;
-        }
-
-        @media (max-width: 768px) {
-          .phrase-display {
-            grid-template-columns: 1fr;
-          }
-
-          .record-btn {
-            min-width: 150px;
-            font-size: 1rem;
-          }
-        }
-      `}</style>
+      <style jsx>{styles}</style>
     </div>
-  )
-}
-
-interface PronunciationFeedback {
-  overallScore: number
-  accuracy: number
-  fluency: number
-  pronunciation: number
-  transcription: string
-  tips: string[]
-}
+  );
+};
 
 function generateMockFeedback(spanishPhrase: string): PronunciationFeedback {
-  const baseScore = 70 + Math.random() * 25 // 70-95 range
-  
+  const baseScore = 70 + Math.random() * 25;
   return {
     overallScore: Math.round(baseScore),
     accuracy: Math.round(baseScore + Math.random() * 10 - 5),
     fluency: Math.round(baseScore + Math.random() * 10 - 5),
     pronunciation: Math.round(baseScore + Math.random() * 10 - 5),
-    transcription: spanishPhrase, // In real app, this would be the recognized speech
+    transcription: spanishPhrase,
     tips: [
-      "Focus on rolling your R's more clearly",
-      "Try to emphasize the correct syllables",
-      "Practice the vowel sounds - they're more distinct in Spanish"
+      "Improve emphasis on the middle syllables",
+      "Vowel sounds could be slightly sharper",
+      "Great rhythm overall, keep it up!"
     ]
-  }
+  };
 }
+
+const styles = `
+  .pronunciation-feedback {
+    padding: var(--space-xl);
+    text-align: center;
+  }
+
+  .highlight {
+    background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .analyzing-view {
+      padding: var(--space-xl) 0;
+  }
+
+  .themed-spinner.big { width: 60px; height: 60px; border-width: 4px; border-top-color: var(--primary); margin: 0 auto var(--space-lg); }
+
+  .waveform-display { margin-top: var(--space-lg); opacity: 0.6; }
+
+  .results-header {
+      border-bottom: 1px solid var(--border-glass);
+      padding-bottom: var(--space-lg);
+      margin-bottom: var(--space-lg);
+  }
+
+  .score-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xl);
+      text-align: left;
+  }
+
+  .score-radial {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 4px solid var(--accent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(16, 185, 129, 0.05);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+  }
+
+  .score-text { font-size: 2.5rem; font-weight: 900; line-height: 1; color: var(--accent); }
+  .score-sub { font-size: 0.8rem; text-transform: uppercase; font-weight: 700; opacity: 0.7; }
+
+  .status-text { color: var(--text-secondary); font-weight: 600; margin-top: 0.2rem; }
+
+  .results-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+      text-align: left;
+  }
+
+  @media (max-width: 600px) {
+      .results-body { grid-template-columns: 1fr; }
+      .score-main { flex-direction: column; text-align: center; }
+  }
+
+  .metric-row { margin-bottom: var(--space-md); }
+  .metric-header { display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-weight: 700; font-size: 0.9rem; }
+  .metric-label { color: var(--text-secondary); }
+  .metric-track { height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-full); overflow: hidden; }
+  .metric-fill { height: 100%; background: var(--secondary); border-radius: var(--radius-full); }
+
+  .tips-section h4 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary); margin-bottom: var(--space-md); }
+  .tips-list { list-style: none; padding: 0; }
+  .tip-item { display: flex; gap: 0.75rem; margin-bottom: 0.6rem; line-height: 1.4; color: var(--text-primary); font-size: 0.95rem; }
+  .tip-bullet { color: var(--accent); font-weight: 900; }
+
+  .results-footer { margin-top: var(--space-xl); }
+
+  .badge-pill {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      padding: 0.2rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .phrase-highlight {
+      margin: var(--space-xl) 0;
+      background: rgba(0, 0, 0, 0.2) !important;
+      padding: var(--space-lg) !important;
+  }
+
+  .label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 800; display: block; margin-bottom: 0.75rem; }
+  .spanish-text { font-size: 1.8rem; font-weight: 700; color: var(--text-primary); margin: 0.5rem 0; }
+
+  .audio-play-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-glass);
+      color: var(--text-primary);
+      padding: 0.4rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: var(--space-md);
+      transition: all 0.2s;
+  }
+  .audio-play-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+  .interaction-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-xl);
+  }
+
+  .record-action {
+      padding: 1rem 2.5rem;
+      border-radius: var(--radius-full);
+      border: none;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.1rem;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .record-action.start {
+      background: var(--accent);
+      color: white;
+  }
+  .record-action.stop {
+      background: var(--danger);
+      color: white;
+      animation: pulse-danger 2s infinite;
+  }
+
+  .dot { width: 10px; height: 10px; background: white; border-radius: 50%; }
+  .square { width: 10px; height: 10px; background: white; }
+
+  @keyframes pulse-danger {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  }
+
+  .error-banner {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      padding: 0.75rem;
+      border-radius: var(--radius-md);
+      margin-top: var(--space-md);
+      font-size: 0.9rem;
+      font-weight: 600;
+  }
+`;

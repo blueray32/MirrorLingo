@@ -2,6 +2,12 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useAudioApi } from '../hooks/useAudioApi';
 import { usePhrasesApi } from '../hooks/usePhrasesApi';
 import { Phrase, IdiolectProfile } from '../types/phrases';
+import {
+  getEnglishSpeechConfig,
+  createSpeechRecognition,
+  processSpeechResults,
+  getBestTranscript
+} from '../utils/speechRecognitionUtils';
 
 interface VoiceRecorderProps {
   userId: string;
@@ -18,12 +24,19 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isAnalyzingPhrases, setIsAnalyzingPhrases] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [speechStatus, setSpeechStatus] = useState('Ready');
 
   const { uploadAudio, isUploading, uploadError, transcriptionResult, clearError } = useAudioApi();
   const { submitPhrases } = usePhrasesApi(userId);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<string>('');
+  const phrasesRef = useRef<string[]>([]); // Store individual phrases
+  const interimTranscriptRef = useRef<string>('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRecordingRef = useRef<boolean>(false);
 
   const startRecording = useCallback(async () => {
     try {
@@ -40,61 +53,113 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         mimeType: 'audio/webm;codecs=opus'
       });
 
+      // Setup Speech Recognition
+      transcriptRef.current = '';
+      phrasesRef.current = [];
+      setLiveTranscript('');
+      const config = getEnglishSpeechConfig();
+      recognitionRef.current = createSpeechRecognition(config);
+      setSpeechStatus('Listening...');
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimText = '';
+
+        // Process results - each final result is a natural phrase/sentence
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            const phrase = result[0].transcript.trim();
+            // Only add if it's a meaningful phrase (3+ words)
+            if (phrase.split(' ').length >= 3 && !phrasesRef.current.includes(phrase)) {
+              phrasesRef.current.push(phrase);
+              console.log('[VoiceRecorder] Captured phrase:', phrase);
+              setSpeechStatus(`Captured ${phrasesRef.current.length} phrase(s)`);
+            }
+          } else {
+            interimText += result[0].transcript + ' ';
+          }
+        }
+
+        // Update full transcript from collected phrases
+        transcriptRef.current = phrasesRef.current.join('. ');
+        
+        // Show phrases + interim for live display
+        interimTranscriptRef.current = interimText.trim();
+        const displayText = phrasesRef.current.length > 0 
+          ? phrasesRef.current.map((p, i) => `${i + 1}. ${p}`).join('\n') + (interimText ? `\n... ${interimText}` : '')
+          : interimText;
+        setLiveTranscript(displayText);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('[VoiceRecorder] Speech recognition error:', event.error);
+        if (event.error === 'no-speech') {
+          setSpeechStatus('No speech detected - try speaking louder');
+        } else {
+          setSpeechStatus(`Error: ${event.error}`);
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        console.log('[VoiceRecorder] Speech recognition ended. Transcript:', transcriptRef.current);
+        // Restart recognition if we're still recording (continuous mode workaround)
+        // Use ref instead of state to avoid closure stale state issue
+        if (isRecordingRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+            setSpeechStatus('Listening... (restarted)');
+            console.log('[VoiceRecorder] Restarted speech recognition');
+          } catch (e) {
+            console.warn('[VoiceRecorder] Could not restart recognition:', e);
+          }
+        }
+      };
+
       const chunks: Blob[] = [];
       mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
+        if (event.data.size > 0) chunks.push(event.data);
       };
 
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(chunks, { type: 'audio/webm' });
         onRecordingComplete(audioBlob, recordingTime);
 
-        // Upload and process audio
-        const success = await uploadAudio(audioBlob, userId);
-        if (success) {
-          // Note: audioBlob upload doesn't yet return analysis data
-          // Analysis happens separately via handleAnalyzeTranscript
-          // This is just for recording completion notification
+        // Stop recognition if still running
+        if (recognitionRef.current) {
+          try { recognitionRef.current.stop(); } catch (e) { }
         }
 
+        const finalTranscript = transcriptRef.current.trim();
+        console.log('[VoiceRecorder] Final transcript to upload:', finalTranscript);
+        await uploadAudio(audioBlob, userId, finalTranscript);
         stream.getTracks().forEach(track => track.stop());
         setRecordingTime(0);
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
+        setLiveTranscript('');
+        if (timerRef.current) clearInterval(timerRef.current);
       };
 
       mediaRecorderRef.current.start();
+      if (recognitionRef.current) recognitionRef.current.start();
+      isRecordingRef.current = true;
       setIsRecording(true);
-
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
 
     } catch {
-      alert('Could not access microphone. Please check permissions.');
+      alert('Acoustic sensor access denied. Please check hardware permissions.');
     }
-  }, [clearError, uploadAudio, onRecordingComplete, onAnalysisComplete, recordingTime]);
+  }, [clearError, uploadAudio, onRecordingComplete, recordingTime, userId]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      isRecordingRef.current = false;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setAudioLevel(0);
     }
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
   const formatTime = (seconds: number) => {
@@ -105,488 +170,248 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
   if (isUploading) {
     return (
-      <div className="voice-recorder processing">
-        <div className="processing-animation">
-          <div className="spinner"></div>
-          <h3>Processing Your Recording...</h3>
-          <p>Analyzing your speech patterns and converting to text</p>
+      <div className="voice-recorder processing glass-card fade-in">
+        <div className="processing-hero">
+          <div className="themed-spinner big"></div>
+          <h3>Neural Extraction in Progress</h3>
+          <p>Processing your acoustic profile through our linguistic engine...</p>
         </div>
-
-        <style jsx>{`
-          .voice-recorder.processing {
-            background: white;
-            border-radius: 1rem;
-            padding: 3rem 2rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 600px;
-            margin: 0 auto;
-          }
-
-          .processing-animation {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
-          }
-
-          .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e2e8f0;
-            border-top: 4px solid #4299e1;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-
-          .processing-animation h3 {
-            color: #2d3748;
-            margin: 0;
-          }
-
-          .processing-animation p {
-            color: #718096;
-            margin: 0;
-          }
-        `}</style>
+        <style jsx>{styles}</style>
       </div>
     );
   }
 
-  // Extract phrases from transcript
   const extractPhrasesFromTranscript = (transcript: string): string[] => {
-    return transcript
+    // Split by sentence-ending punctuation and common phrase boundaries
+    const sentences = transcript
       .split(/[.!?]+/)
       .map(s => s.trim())
-      .filter(s => s.length > 5)
-      .slice(0, 10);
-  };
-
-  // Handle analyzing the transcript
-  const handleAnalyzeTranscript = async () => {
-    if (!transcriptionResult) return;
-
-    const phrases = extractPhrasesFromTranscript(transcriptionResult.transcript);
-    if (phrases.length === 0) {
-      alert('Could not extract enough phrases from the transcript. Please try recording again with more speech.');
-      return;
-    }
-
-    setIsAnalyzingPhrases(true);
-    try {
-      const result = await submitPhrases(phrases);
-      if (result) {
-        onAnalysisComplete(result);
+      .filter(s => s.length > 3);
+    
+    const phrases: string[] = [];
+    
+    for (const sentence of sentences) {
+      // If sentence is short enough, keep as-is
+      if (sentence.split(' ').length <= 12) {
+        if (sentence.length > 5) phrases.push(sentence);
+        continue;
       }
-    } finally {
-      setIsAnalyzingPhrases(false);
+      
+      // Split longer sentences by commas, "and", "but", "so", "because"
+      const parts = sentence
+        .split(/,\s*|\s+and\s+|\s+but\s+|\s+so\s+|\s+because\s+/i)
+        .map(p => p.trim())
+        .filter(p => p.split(' ').length >= 3 && p.length > 5);
+      
+      if (parts.length > 1) {
+        phrases.push(...parts);
+      } else if (sentence.length > 5) {
+        phrases.push(sentence);
+      }
     }
+    
+    // Remove duplicates and limit to 10 phrases
+    const unique = Array.from(new Set(phrases));
+    return unique.slice(0, 10);
   };
 
   if (transcriptionResult) {
-    const extractedPhrases = extractPhrasesFromTranscript(transcriptionResult.transcript);
+    // Use the phrases we captured during recording, or extract from transcript
+    const extractedPhrases = phrasesRef.current.length > 0 
+      ? phrasesRef.current 
+      : extractPhrasesFromTranscript(transcriptionResult.transcript);
 
     return (
-      <div className="voice-recorder results">
-        <div className="transcription-results">
-          <h3>✅ Recording Processed Successfully!</h3>
-          <div className="transcript">
-            <h4>Transcript:</h4>
-            <p>"{transcriptionResult.transcript}"</p>
-          </div>
-          <div className="metrics">
-            <div className="metric">
-              <span className="label">Confidence:</span>
-              <span className="value">{Math.round(transcriptionResult.confidence * 100)}%</span>
+      <div className="voice-recorder results glass-card fade-in">
+        <header className="results-header">
+          <span className="badge-pill success">Acquisition Successful</span>
+          <h3>Phrases Captured</h3>
+        </header>
+
+        {extractedPhrases.length > 0 ? (
+          <div className="extraction-pane fade-in">
+            <div className="pane-header">
+              <h5>Your Phrases ({extractedPhrases.length})</h5>
+              <p className="hint-text">These are the natural phrases we detected from your speech</p>
             </div>
-            <div className="metric">
-              <span className="label">Words per minute:</span>
-              <span className="value">{transcriptionResult.speechMetrics.wordsPerMinute}</span>
-            </div>
-            <div className="metric">
-              <span className="label">Word count:</span>
-              <span className="value">{transcriptionResult.speechMetrics.wordCount}</span>
-            </div>
-          </div>
-
-          {extractedPhrases.length > 0 && (
-            <div className="extracted-phrases">
-              <h4>Extracted Phrases ({extractedPhrases.length}):</h4>
-              <ul>
-                {extractedPhrases.map((phrase, idx) => (
-                  <li key={idx}>"{phrase}"</li>
-                ))}
-              </ul>
-              <button
-                onClick={handleAnalyzeTranscript}
-                className="analyze-btn"
-                disabled={isAnalyzingPhrases}
-              >
-                {isAnalyzingPhrases ? 'Analyzing...' : 'Analyze My Speaking Style'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <style jsx>{`
-          .voice-recorder.results {
-            background: white;
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            margin: 0 auto;
-            text-align: center;
-          }
-
-          .transcription-results h3 {
-            color: #38a169;
-            margin-bottom: 1.5rem;
-          }
-
-          .transcript {
-            background: #f0fff4;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #38a169;
-          }
-
-          .transcript h4 {
-            color: #2d3748;
-            margin-bottom: 0.5rem;
-          }
-
-          .transcript p {
-            color: #4a5568;
-            font-style: italic;
-            font-size: 1.1rem;
-            line-height: 1.5;
-          }
-
-          .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-          }
-
-          .metric {
-            background: #f8fafc;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          }
-
-          .metric .label {
-            color: #718096;
-            font-size: 0.875rem;
-            margin-bottom: 0.25rem;
-          }
-
-          .metric .value {
-            color: #2d3748;
-            font-weight: 600;
-            font-size: 1.25rem;
-          }
-
-          .extracted-phrases {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #e2e8f0;
-            text-align: left;
-          }
-
-          .extracted-phrases h4 {
-            color: #2d3748;
-            margin-bottom: 0.75rem;
-          }
-
-          .extracted-phrases ul {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 1rem 0;
-          }
-
-          .extracted-phrases li {
-            padding: 0.5rem 0.75rem;
-            background: #f8fafc;
-            margin-bottom: 0.5rem;
-            border-radius: 0.5rem;
-            border-left: 3px solid #4299e1;
-            color: #4a5568;
-            font-style: italic;
-            font-size: 0.9rem;
-          }
-
-          .analyze-btn {
-            width: 100%;
-            padding: 1rem;
-            font-size: 1rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-          }
-
-          .analyze-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-          }
-
-          .analyze-btn:disabled {
-            background: #a0aec0;
-            cursor: not-allowed;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  return (
-    <div className="voice-recorder">
-      <div className="recorder-container">
-        <div className="recording-status">
-          {isRecording ? (
-            <div className="recording-active">
-              <div className="recording-indicator">
-                <div className="pulse-dot"></div>
-                <span>Recording...</span>
-              </div>
-              <div className="recording-time">{formatTime(recordingTime)}</div>
-            </div>
-          ) : (
-            <div className="recording-ready">
-              <h3>🎤 Ready to Record</h3>
-              <p>Click the button below to start recording your voice</p>
-            </div>
-          )}
-        </div>
-
-        <div className="audio-visualizer">
-          <div
-            className="audio-level-bar"
-            style={{
-              height: `${Math.max(audioLevel * 100, 5)}%`,
-              backgroundColor: isRecording ? '#48bb78' : '#e2e8f0'
-            }}
-          ></div>
-        </div>
-
-        <div className="recording-controls">
-          {!isRecording ? (
+            <ul className="phrase-stack">
+              {extractedPhrases.map((phrase, idx) => (
+                <li key={idx}>"{phrase}"</li>
+              ))}
+            </ul>
             <button
-              onClick={startRecording}
-              className="record-btn start"
+              onClick={async () => {
+                setIsAnalyzingPhrases(true);
+                const result = await submitPhrases(extractedPhrases);
+                if (result) onAnalysisComplete(result);
+                setIsAnalyzingPhrases(false);
+              }}
+              className="primary-btn wide-btn"
+              disabled={isAnalyzingPhrases}
             >
-              🎤 Start Recording
+              {isAnalyzingPhrases ? 'Analyzing Your Style...' : 'Analyze My Speaking Style'}
             </button>
-          ) : (
-            <button
-              onClick={stopRecording}
-              className="record-btn stop"
-            >
-              ⏹️ Stop Recording
-            </button>
-          )}
-        </div>
-
-        {uploadError && (
-          <div className="error-message">
-            <p>❌ {uploadError}</p>
-            <button onClick={clearError} className="clear-error">
+          </div>
+        ) : (
+          <div className="no-phrases">
+            <p>No clear phrases detected. Try speaking in complete sentences.</p>
+            <button onClick={() => window.location.reload()} className="secondary-btn">
               Try Again
             </button>
           </div>
         )}
 
-        <div className="recording-tips">
-          <h4>💡 Recording Tips</h4>
-          <ul>
-            <li>Speak naturally as you would in daily conversation</li>
-            <li>Include phrases you actually use at work, home, or with friends</li>
-            <li>Don't worry about perfect grammar - be authentic!</li>
-            <li>Record for 30-60 seconds for best analysis</li>
-          </ul>
+        <div className="meta-grid">
+          <div className="meta-card glass-card">
+            <span className="m-label">Confidence</span>
+            <span className="m-val">{Math.round(transcriptionResult.confidence * 100)}%</span>
+          </div>
+          <div className="meta-card glass-card">
+            <span className="m-label">Speaking Pace</span>
+            <span className="m-val">{transcriptionResult.speechMetrics.wordsPerMinute} WPM</span>
+          </div>
+          <div className="meta-card glass-card">
+            <span className="m-label">Total Words</span>
+            <span className="m-val">{transcriptionResult.speechMetrics.wordCount}</span>
+          </div>
         </div>
+        <style jsx>{styles}</style>
       </div>
+    );
+  }
 
-      <style jsx>{`
-        .voice-recorder {
-          background: white;
-          border-radius: 1rem;
-          padding: 2rem;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-          max-width: 600px;
-          margin: 0 auto;
-        }
+  return (
+    <div className="voice-recorder idle glass-card fade-in">
+      <div className="recorder-hero">
+        <header className="hero-header">
+          <span className="badge-pill">Acoustic Input</span>
+          {isRecording ? (
+            <div className="live-status">
+              <div className="pulse-dot"></div>
+              <h3 className="danger">Recording Session</h3>
+              <span className="timer-val">{formatTime(recordingTime)}</span>
+              <span className="speech-status">{speechStatus}</span>
+            </div>
+          ) : (
+            <div className="ready-status">
+              <h3>Voice Acquisition</h3>
+              <p>Initialize the stream to capture your unique linguistic profile.</p>
+            </div>
+          )}
+        </header>
 
-        .recorder-container {
-          text-align: center;
-        }
+        <div className="visualizer-stage glass-card">
+          {liveTranscript ? (
+            <div className="live-transcript-view fade-in">
+              <p>{liveTranscript}</p>
+            </div>
+          ) : (
+            <div className="v-bars">
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={i}
+                  className="v-bar"
+                  style={{
+                    height: isRecording ? `${Math.max(10, Math.random() * 80)}%` : '5%',
+                    backgroundColor: isRecording ? 'var(--danger)' : 'var(--border-glass)'
+                  }}
+                ></div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        .recording-status {
-          margin-bottom: 2rem;
-        }
+        <div className="recorder-actions">
+          {!isRecording ? (
+            <button onClick={startRecording} className="record-trigger start">
+              <span className="icon">🎤</span> Initialize Capture
+            </button>
+          ) : (
+            <button onClick={stopRecording} className="record-trigger stop">
+              <span className="icon">⏹️</span> Finalize Feed
+            </button>
+          )}
+        </div>
 
-        .recording-ready h3 {
-          color: #2d3748;
-          margin-bottom: 0.5rem;
-        }
+        {uploadError && (
+          <div className="status-error fade-in">
+            <span>⚠️ {uploadError}</span>
+            <button onClick={clearError} className="text-link">Retry</button>
+          </div>
+        )}
 
-        .recording-ready p {
-          color: #718096;
-        }
-
-        .recording-active {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .recording-indicator {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: #e53e3e;
-          font-weight: 600;
-        }
-
-        .pulse-dot {
-          width: 12px;
-          height: 12px;
-          background: #e53e3e;
-          border-radius: 50%;
-          animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-          0% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.2); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-
-        .recording-time {
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: #2d3748;
-          font-family: 'Courier New', monospace;
-        }
-
-        .audio-visualizer {
-          height: 100px;
-          display: flex;
-          align-items: end;
-          justify-content: center;
-          margin: 2rem 0;
-          background: #f8fafc;
-          border-radius: 0.5rem;
-          padding: 1rem;
-        }
-
-        .audio-level-bar {
-          width: 20px;
-          background: #e2e8f0;
-          border-radius: 10px;
-          transition: height 0.1s ease-out;
-          min-height: 5px;
-        }
-
-        .recording-controls {
-          margin: 2rem 0;
-        }
-
-        .record-btn {
-          padding: 1rem 2rem;
-          font-size: 1.1rem;
-          font-weight: 600;
-          border: none;
-          border-radius: 0.75rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          min-width: 200px;
-        }
-
-        .record-btn.start {
-          background: linear-gradient(135deg, #48bb78, #38a169);
-          color: white;
-        }
-
-        .record-btn.stop {
-          background: linear-gradient(135deg, #e53e3e, #c53030);
-          color: white;
-        }
-
-        .record-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .error-message {
-          background: #fed7d7;
-          color: #c53030;
-          padding: 1rem;
-          border-radius: 0.5rem;
-          margin: 1rem 0;
-        }
-
-        .clear-error {
-          background: #c53030;
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 0.25rem;
-          cursor: pointer;
-          margin-top: 0.5rem;
-        }
-
-        .recording-tips {
-          background: #f0f9ff;
-          padding: 1.5rem;
-          border-radius: 0.75rem;
-          margin-top: 2rem;
-          text-align: left;
-        }
-
-        .recording-tips h4 {
-          color: #1e40af;
-          margin-bottom: 1rem;
-        }
-
-        .recording-tips ul {
-          color: #1e3a8a;
-          line-height: 1.6;
-        }
-
-        .recording-tips li {
-          margin-bottom: 0.5rem;
-        }
-
-        @media (max-width: 768px) {
-          .voice-recorder {
-            padding: 1rem;
-          }
-
-          .record-btn {
-            min-width: 150px;
-            font-size: 1rem;
-          }
-
-          .metrics {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+        <footer className="recorder-guidance glass-card">
+          <h6>Acquisition Protocol</h6>
+          <ul>
+            <li>Maintain a natural, unscripted conversational pace.</li>
+            <li>Utilize authentic idioms and common vocational syntax.</li>
+            <li>Aim for 30-60 seconds of continuous acoustic stream.</li>
+          </ul>
+        </footer>
+      </div>
+      <style jsx>{styles}</style>
     </div>
   );
 };
+
+const styles = `
+    .voice-recorder { max-width: 650px; margin: 0 auto; padding: var(--space-xl) !important; }
+
+    .badge-pill { display: inline-block; background: rgba(99, 102, 241, 0.1); color: var(--primary); padding: 0.2rem 0.8rem; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid rgba(99, 102, 241, 0.2); margin-bottom: 1rem; }
+    .badge-pill.success { background: rgba(16, 185, 129, 0.1); color: var(--accent); border-color: rgba(16, 185, 129, 0.2); }
+
+    .processing-hero { text-align: center; padding: var(--space-xl) 0; }
+    .processing-hero h3 { font-size: 1.8rem; margin: var(--space-md) 0; color: var(--text-primary); }
+    .processing-hero p { color: var(--text-secondary); opacity: 0.7; }
+
+    .hero-header { text-align: center; margin-bottom: var(--space-xl); }
+    .hero-header h3 { font-size: 2rem; margin: 0.5rem 0; color: var(--text-primary); }
+    .hero-header h3.danger { color: var(--danger); text-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+    .hero-header p { color: var(--text-secondary); opacity: 0.7; }
+
+    .live-status { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+    .timer-val { font-size: 2.5rem; font-weight: 800; font-family: 'Courier New', monospace; color: var(--text-primary); }
+    .pulse-dot { width: 10px; height: 10px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 10px var(--danger); animation: recorder-pulse 1.5s infinite; }
+    .speech-status { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; background: rgba(99, 102, 241, 0.1); padding: 0.3rem 1rem; border-radius: var(--radius-full); margin-top: 0.5rem; }
+
+    .live-transcript-view { padding: var(--space-md); text-align: center; max-height: 100px; overflow-y: auto; width: 100%; }
+    .live-transcript-view p { font-size: 0.95rem; color: var(--text-primary); font-style: italic; margin: 0; line-height: 1.4; }
+
+    .visualizer-stage { height: 120px; background: rgba(0,0,0,0.3) !important; margin: var(--space-xl) 0; display: flex; align-items: center; justify-content: center; }
+    .v-bars { display: flex; align-items: flex-end; gap: 6px; height: 60px; width: 100%; justify-content: center; }
+    .v-bar { width: 4px; border-radius: 2px; transition: height 0.15s ease-out; }
+
+    .record-trigger { padding: 1rem 3.5rem; border-radius: var(--radius-full); border: none; font-size: 1.2rem; font-weight: 800; color: white; cursor: pointer; display: flex; align-items: center; gap: 1rem; margin: 0 auto; transition: all 0.2s; }
+    .record-trigger.start { background: var(--primary); box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3); }
+    .record-trigger.stop { background: var(--danger); box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3); }
+    .record-trigger:hover { transform: translateY(-4px); }
+
+    .status-error { margin-top: var(--space-xl); padding: var(--space-md); background: rgba(239, 68, 68, 0.1); color: var(--danger); border-radius: var(--radius-md); border-left: 3px solid var(--danger); display: flex; justify-content: center; align-items: center; gap: 1rem; }
+    .text-link { background: none; border: none; color: var(--danger); text-decoration: underline; font-weight: 800; cursor: pointer; }
+
+    .recorder-guidance { margin-top: var(--space-xl); background: rgba(255,255,255,0.02) !important; text-align: left; padding: var(--space-lg) !important; }
+    .recorder-guidance h6 { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--primary); margin-bottom: 0.8rem; }
+    .recorder-guidance ul { padding-left: 1.2rem; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
+
+    /* Results */
+    .results-header { text-align: center; margin-bottom: var(--space-xl); }
+    .transcript-box { background: rgba(0,0,0,0.2) !important; margin-bottom: var(--space-xl); text-align: left; }
+    .box-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--accent); opacity: 0.8; }
+    .transcript-text { font-size: 1.1rem; color: var(--text-primary); font-style: italic; margin-top: 0.5rem; line-height: 1.6; }
+
+    .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-md); margin-bottom: var(--space-xl); }
+    .meta-card { text-align: center; padding: var(--space-md) !important; }
+    .m-label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.6; display: block; }
+    .m-val { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
+
+    .extraction-pane { border-top: 1px solid var(--border-glass); padding-top: var(--space-xl); text-align: left; }
+    .pane-header h5 { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; color: var(--text-primary); margin-bottom: 1rem; }
+    .phrase-stack { list-style: none; padding: 0; margin-bottom: var(--space-xl); }
+    .phrase-stack li { padding: 0.8rem 1rem; background: rgba(255,255,255,0.03); border-radius: var(--radius-md); border-left: 3px solid var(--primary); color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem; font-style: italic; }
+
+    .wide-btn { width: 100%; padding: 1.2rem; }
+
+    @keyframes recorder-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+
+    @media (max-width: 600px) { .meta-grid { grid-template-columns: 1fr; } }
+`;

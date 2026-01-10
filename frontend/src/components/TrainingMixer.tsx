@@ -240,22 +240,22 @@ export const TrainingMixer: React.FC<TrainingMixerProps> = ({
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
+  const getDifficultyColorClass = (difficulty: string) => {
     switch (difficulty) {
-      case 'easy': return '#38a169';
-      case 'medium': return '#dd6b20';
-      case 'hard': return '#e53e3e';
-      default: return '#718096';
+      case 'easy': return 'accent-badge';
+      case 'medium': return 'secondary-badge';
+      case 'hard': return 'primary-badge';
+      default: return '';
     }
   };
 
   if (isGenerating) {
     return (
       <div className="training-mixer">
-        <div className="generating">
-          <div className="spinner"></div>
-          <h3>Mixing Your Training Material...</h3>
-          <p>Creating personalized exercises based on your phrases</p>
+        <div className="generating-state glass-card">
+          <div className="themed-spinner"></div>
+          <h3>Mixing your <span className="highlight">Training Deck</span></h3>
+          <p>Generating personalized exercises based on your recordings...</p>
         </div>
         <style jsx>{styles}</style>
       </div>
@@ -265,9 +265,10 @@ export const TrainingMixer: React.FC<TrainingMixerProps> = ({
   if (exercises.length === 0) {
     return (
       <div className="training-mixer">
-        <div className="no-exercises">
-          <h3>Not Enough Material</h3>
-          <p>Add more phrases to generate mixed training exercises.</p>
+        <div className="empty-state glass-card">
+          <h3>Need more material</h3>
+          <p>You haven't recorded enough phrases yet to generate a mixer.</p>
+          <p className="hint">Try recording at least 3-5 phrases from the home page.</p>
         </div>
         <style jsx>{styles}</style>
       </div>
@@ -278,115 +279,99 @@ export const TrainingMixer: React.FC<TrainingMixerProps> = ({
   const isLastExercise = currentIndex === exercises.length - 1;
 
   return (
-    <div className="training-mixer">
-      <div className="mixer-header">
-        <div className="progress-info">
-          <span className="exercise-count">{currentIndex + 1} of {exercises.length}</span>
-          <span className="score">Score: {score.correct}/{score.total}</span>
-        </div>
-        <div className="exercise-meta">
-          <span className="exercise-type">{getExerciseTypeLabel(currentExercise.type)}</span>
-          <span
-            className="difficulty"
-            style={{ color: getDifficultyColor(currentExercise.difficulty) }}
-          >
-            {currentExercise.difficulty}
-          </span>
-        </div>
-      </div>
-
-      <div className="exercise-card">
-        <div className="exercise-prompt">
-          <p>{currentExercise.exercise}</p>
-        </div>
-
-        {!showResult ? (
-          <div className="answer-section">
-            {currentExercise.options ? (
-              <div className="multiple-choice">
-                {currentExercise.options.map((option, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setUserAnswer(option)}
-                    className={`choice-btn ${userAnswer === option ? 'selected' : ''}`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && userAnswer.trim() && checkAnswer()}
-                placeholder="Type your answer..."
-                className="answer-input"
-                autoFocus
-              />
-            )}
-            {currentExercise.hint && (
-              <p className="hint">Hint: {currentExercise.hint}</p>
-            )}
-            <button
-              onClick={checkAnswer}
-              disabled={!userAnswer.trim()}
-              className="submit-btn"
-            >
-              Check Answer
-            </button>
+    <div className="training-mixer fade-in">
+      <div className="mixer-card glass-card">
+        <header className="card-header">
+          <div className="progress-bar-container">
+            <div className="progress-stats">
+              <span>Exercise {currentIndex + 1} of {exercises.length}</span>
+              <span className="accent-text">Score: {score.correct}/{score.total}</span>
+            </div>
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${((currentIndex + 1) / exercises.length) * 100}%` }}></div>
+            </div>
           </div>
-        ) : (
-          <div className="result-section">
-            <div className={`result ${isCorrect ? 'correct' : 'incorrect'}`}>
-              {isCorrect ? (
-                <>
-                  <span className="result-icon">✓</span>
-                  <span>Correct!</span>
-                </>
+          <div className="meta-badges">
+            <span className="type-badge">{getExerciseTypeLabel(currentExercise.type)}</span>
+            <span className={`badge ${getDifficultyColorClass(currentExercise.difficulty)}`}>
+              {currentExercise.difficulty}
+            </span>
+          </div>
+        </header>
+
+        <div className="exercise-body">
+          <div className="prompt-container">
+            <p className="prompt-text">{currentExercise.exercise}</p>
+          </div>
+
+          {!showResult ? (
+            <div className="input-section">
+              {currentExercise.options ? (
+                <div className="options-grid">
+                  {currentExercise.options.map((option, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setUserAnswer(option)}
+                      className={`option-btn ${userAnswer === option ? 'selected' : ''}`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
               ) : (
-                <>
-                  <span className="result-icon">✗</span>
-                  <span>Not quite</span>
-                </>
+                <div className="field-group">
+                  <input
+                    type="text"
+                    value={userAnswer}
+                    onChange={(e) => setUserAnswer(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && userAnswer.trim() && checkAnswer()}
+                    placeholder="Type your answer here..."
+                    className="styled-input"
+                    autoFocus
+                  />
+                  {currentExercise.hint && (
+                    <p className="hint-text">💡 Hint: {currentExercise.hint}</p>
+                  )}
+                </div>
               )}
-            </div>
 
-            {!isCorrect && (
-              <div className="correct-answer">
-                <p>Correct answer:</p>
-                <strong>{currentExercise.answer}</strong>
+              <button
+                onClick={checkAnswer}
+                disabled={!userAnswer.trim()}
+                className="primary-btn submit-action"
+              >
+                Verify Answer
+              </button>
+            </div>
+          ) : (
+            <div className="result-view">
+              <div className={`status-banner ${isCorrect ? 'is-correct' : 'is-error'}`}>
+                {isCorrect ? (
+                  <><span className="icon">✨</span> Perfect Match</>
+                ) : (
+                  <><span className="icon">🧗</span> Almost there</>
+                )}
               </div>
-            )}
 
-            <div className="original-phrase">
-              <p>Original phrase:</p>
-              <em>"{currentExercise.originalPhrase}"</em>
+              {!isCorrect && (
+                <div className="reveal-box">
+                  <span className="box-label">Correct answer:</span>
+                  <div className="box-content highlighted">{currentExercise.answer}</div>
+                </div>
+              )}
+
+              <div className="reveal-box secondary">
+                <span className="box-label">Original phrase:</span>
+                <div className="box-content">"{currentExercise.originalPhrase}"</div>
+              </div>
+
+              <button onClick={nextExercise} className="primary-btn next-action">
+                {isLastExercise ? 'Finish Challenge' : 'Next Exercise'}
+              </button>
             </div>
-
-            <button onClick={nextExercise} className="next-btn">
-              {isLastExercise ? 'Finish' : 'Next Exercise'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Session Complete Modal */}
-      {showResult && isLastExercise && (
-        <div className="completion-summary">
-          <h3>Training Complete!</h3>
-          <div className="final-score">
-            <span className="score-number">{score.correct}</span>
-            <span className="score-divider">/</span>
-            <span className="score-total">{score.total}</span>
-          </div>
-          <p className="score-message">
-            {score.correct === score.total ? 'Perfect score!' :
-              score.correct >= score.total * 0.7 ? 'Great job!' :
-                'Keep practicing!'}
-          </p>
+          )}
         </div>
-      )}
+      </div>
 
       <style jsx>{styles}</style>
     </div>
@@ -417,297 +402,264 @@ export function levenshteinDistance(str1: string, str2: string): number {
 
 const styles = `
   .training-mixer {
-    max-width: 600px;
+    max-width: 800px;
     margin: 0 auto;
-    padding: 2rem;
   }
 
-  .generating, .no-exercises {
+  .generating-state, .empty-state {
     text-align: center;
-    padding: 3rem;
-    background: white;
-    border-radius: 1rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    padding: var(--space-xl);
   }
 
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #e2e8f0;
-    border-top-color: #4299e1;
+  .highlight {
+    background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .themed-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--border-glass);
+    border-top: 3px solid var(--primary);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 1rem;
+    animation: themed-spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    margin: 0 auto var(--space-md);
   }
 
-  @keyframes spin {
+  @keyframes themed-spin {
     to { transform: rotate(360deg); }
   }
 
-  .mixer-header {
+  .mixer-card {
+    padding: 0 !important;
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: rgba(255, 255, 255, 0.03);
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-glass);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .progress-bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .progress-stats {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    background: #f8fafc;
-    border-radius: 0.75rem;
-  }
-
-  .progress-info {
-    display: flex;
-    gap: 1.5rem;
-  }
-
-  .exercise-count {
-    font-weight: 600;
-    color: #4299e1;
-  }
-
-  .score {
-    color: #718096;
-  }
-
-  .exercise-meta {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  .exercise-type {
-    background: #e2e8f0;
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
     font-size: 0.85rem;
-    color: #4a5568;
+    font-weight: 700;
+    color: var(--text-secondary);
   }
 
-  .difficulty {
-    font-weight: 600;
-    font-size: 0.85rem;
+  .accent-text { color: var(--accent); }
+
+  .progress-track {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-full);
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+    border-radius: var(--radius-full);
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .meta-badges {
+    display: flex;
+    gap: var(--space-sm);
+  }
+
+  .type-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
-  .exercise-card {
-    background: white;
-    border-radius: 1rem;
-    padding: 2rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  .badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
   }
 
-  .exercise-prompt {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: #f0f9ff;
-    border-radius: 0.75rem;
-    border-left: 4px solid #4299e1;
+  .primary-badge { 
+      background: rgba(99, 102, 241, 0.15); 
+      color: var(--primary);
+  }
+  .secondary-badge { 
+      background: rgba(236, 72, 153, 0.15); 
+      color: var(--secondary);
+  }
+  .accent-badge { 
+      background: rgba(16, 185, 129, 0.15); 
+      color: var(--accent);
   }
 
-  .exercise-prompt p {
-    color: #2d3748;
-    font-size: 1.2rem;
-    line-height: 1.5;
-    margin: 0;
+  .exercise-body {
+    padding: var(--space-xl) var(--space-lg);
   }
 
-  .multiple-choice {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .choice-btn {
-    padding: 1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 0.75rem;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1rem;
+  .prompt-container {
+    background: rgba(255, 255, 255, 0.03);
+    padding: var(--space-xl);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary);
+    margin-bottom: var(--space-xl);
     text-align: center;
   }
 
-  .choice-btn:hover {
-    border-color: #4299e1;
-    background: #f0f9ff;
+  .prompt-text {
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    line-height: 1.4;
   }
 
-  .choice-btn.selected {
-    border-color: #4299e1;
-    background: #4299e1;
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+  }
+
+  .option-btn {
+    padding: var(--space-lg);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .option-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+    border-color: var(--primary);
+  }
+
+  .option-btn.selected {
+    background: var(--primary);
     color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
   }
 
-  .answer-input {
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: var(--space-xl);
+  }
+
+  .styled-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    text-align: center;
+    transition: all var(--transition-fast);
+  }
+
+  .styled-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  }
+
+  .hint-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  .submit-action, .next-action {
     width: 100%;
     padding: 1rem;
     font-size: 1.1rem;
-    border: 2px solid #e2e8f0;
-    border-radius: 0.75rem;
-    margin-bottom: 1rem;
-    transition: border-color 0.2s;
   }
 
-  .answer-input:focus {
-    outline: none;
-    border-color: #4299e1;
+  .result-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    animation: resultEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  .hint {
-    color: #718096;
-    font-size: 0.9rem;
-    font-style: italic;
-    margin-bottom: 1rem;
+  @keyframes resultEnter {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
   }
 
-  .submit-btn, .next-btn {
-    width: 100%;
-    padding: 1rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .submit-btn {
-    background: linear-gradient(135deg, #4299e1, #3182ce);
-    color: white;
-  }
-
-  .submit-btn:disabled {
-    background: #a0aec0;
-    cursor: not-allowed;
-  }
-
-  .submit-btn:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
-  }
-
-  .next-btn {
-    background: linear-gradient(135deg, #48bb78, #38a169);
-    color: white;
-    margin-top: 1.5rem;
-  }
-
-  .next-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
-  }
-
-  .result-section {
+  .status-banner {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    font-weight: 800;
+    font-size: 1.2rem;
     text-align: center;
-  }
-
-  .result {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1rem;
-    border-radius: 0.75rem;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
   }
 
-  .result.correct {
-    background: #c6f6d5;
-    color: #22543d;
+  .is-correct { background: rgba(16, 185, 129, 0.1); color: var(--accent); }
+  .is-error { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+
+  .reveal-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    text-align: left;
   }
 
-  .result.incorrect {
-    background: #fed7d7;
-    color: #742a2a;
+  .box-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
   }
 
-  .result-icon {
-    font-size: 1.5rem;
+  .box-content {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      font-weight: 600;
   }
 
-  .correct-answer {
-    background: #fef5e7;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
+  .box-content.highlighted {
+      color: var(--primary);
+      font-weight: 800;
   }
 
-  .correct-answer p {
-    color: #744210;
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .correct-answer strong {
-    color: #744210;
-    font-size: 1.1rem;
-  }
-
-  .original-phrase {
-    background: #f8fafc;
-    padding: 1rem;
-    border-radius: 0.5rem;
-  }
-
-  .original-phrase p {
-    color: #718096;
-    font-size: 0.85rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .original-phrase em {
-    color: #4a5568;
-    font-size: 1rem;
-  }
-
-  .completion-summary {
-    margin-top: 2rem;
-    padding: 2rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    border-radius: 1rem;
-    text-align: center;
-    color: white;
-  }
-
-  .completion-summary h3 {
-    margin-bottom: 1rem;
-  }
-
-  .final-score {
-    font-size: 3rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-  }
-
-  .score-divider {
-    margin: 0 0.25rem;
-    opacity: 0.7;
-  }
-
-  .score-total {
-    opacity: 0.7;
-  }
-
-  .score-message {
-    font-size: 1.2rem;
-    opacity: 0.9;
-  }
-
-  @media (max-width: 768px) {
-    .training-mixer {
-      padding: 1rem;
-    }
-
-    .mixer-header {
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .exercise-prompt p {
-      font-size: 1rem;
-    }
+  @media (max-width: 600px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .prompt-text { font-size: 1.1rem; }
   }
 `;

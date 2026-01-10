@@ -1,0 +1,84 @@
+.mainNav {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-glass);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navLogo {
+    text-decoration: none;
+    transition: transform var(--transition-fast);
+}
+
+.navLogo:hover {
+    transform: scale(1.02);
+}
+
+.logoText {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.navLinks {
+    display: flex;
+    gap: 1rem;
+}
+
+.navLink {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    transition: all var(--transition-normal);
+    border: 1px solid transparent;
+}
+
+.navLink:hover {
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    border-color: var(--border-glass);
+}
+
+.navLinkActive {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.navIcon {
+    font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+    .mainNav {
+        padding: 1rem;
+    }
+
+    .navLabel {
+        display: none;
+    }
+
+    .navLink {
+        padding: 0.6rem;
+    }
+
+    .navLinks {
+        gap: 0.5rem;
+    }
+}

@@ -68,6 +68,10 @@ Before completing:
 - ✅ All validation commands pass
 - ✅ Code follows project conventions
 - ✅ Documentation added/updated as needed
+- ✅ State persistence tested (for conversation/interactive features):
+  - Verify data saves on user action
+  - Verify data restores on component mount
+  - Verify state clears appropriately (topic change, logout, etc.)
 
 ## Output Report
 
