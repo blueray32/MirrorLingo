@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Phrase, IdiolectProfile } from '../types/phrases';
+import styles from './SpanishTranslations.module.css';
 
 interface SpanishTranslation {
   literal: string;
@@ -83,47 +84,47 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
   };
 
   return (
-    <div className="spanish-translations-module fade-in">
-      <header className="module-header">
-        <span className="badge-pill">Stylistic Mapping</span>
+    <div className={`${styles.spanishTranslationsModule} ${styles.fadeIn}`}>
+      <header className={styles.moduleHeader}>
+        <span className={styles.badgePill}>Stylistic Mapping</span>
         <h2>Persona Synchronization</h2>
         <p>Based on your <strong className="highlight">{profile.overallTone}</strong> tone and <strong className="highlight">{profile.overallFormality}</strong> delivery, we've mapped your English expressions to their Spanish counterparts.</p>
       </header>
 
       {translations.length === 0 ? (
-        <div className="selection-view glass-card">
-          <div className="selection-header">
+        <div className={`${styles.selectionView} glass-card`}>
+          <div className={styles.selectionHeader}>
             <h3>Select Expressions to Synchronize</h3>
-            <div className="selection-actions">
-              <button onClick={() => setSelectedPhrases(phrases.map(p => p.phraseId))} className="small-text-btn">Select All</button>
-              <button onClick={() => setSelectedPhrases([])} className="small-text-btn">Clear</button>
+            <div className={styles.selectionActions}>
+              <button onClick={() => setSelectedPhrases(phrases.map(p => p.phraseId))} className={styles.smallTextBtn}>Select All</button>
+              <button onClick={() => setSelectedPhrases([])} className={styles.smallTextBtn}>Clear</button>
             </div>
           </div>
 
-          <div className="phrase-grid">
+          <div className={styles.phraseGrid}>
             {phrases.map((phrase) => (
               <div
                 key={phrase.phraseId}
-                className={`phrase-tile glass-card ${selectedPhrases.includes(phrase.phraseId) ? 'active' : ''}`}
+                className={`${styles.phraseTile} glass-card ${selectedPhrases.includes(phrase.phraseId) ? styles.active : ''}`}
                 onClick={() => togglePhraseSelection(phrase.phraseId)}
               >
-                <div className="tile-check">{selectedPhrases.includes(phrase.phraseId) ? '✓' : ''}</div>
-                <div className="tile-content">
-                  <p className="p-text">"{phrase.englishText}"</p>
-                  <span className="p-tag">{phrase.intent}</span>
+                <div className={styles.tileCheck}>{selectedPhrases.includes(phrase.phraseId) ? '✓' : ''}</div>
+                <div className={styles.tileContent}>
+                  <p className={styles.pText}>"{phrase.englishText}"</p>
+                  <span className={styles.pTag}>{phrase.intent}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <footer className="selection-footer">
+          <footer className={styles.selectionFooter}>
             <button
               onClick={handleGenerateTranslations}
               disabled={selectedPhrases.length === 0 || isLoading}
               className="primary-btn wide-btn"
             >
               {isLoading ? (
-                <span className="load-row">
+                <span className={styles.loadRow}>
                   <span className="themed-spinner mini"></span>
                   Processing Linguistic Vectors...
                 </span>
@@ -134,67 +135,105 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
           </footer>
         </div>
       ) : (
-        <div className="results-view">
-          <div className="results-control-bar">
-            <h3>Synchronized Mappings</h3>
+        <div className={styles.resultsView}>
+          <div className={styles.resultsControlBar}>
+            <div className={styles.rTitleGroup}>
+              <span className={styles.premiumIconGlow}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
+              </span>
+              <h3>Synchronized Mappings</h3>
+            </div>
             <button
               onClick={() => { setTranslations([]); setSelectedPhrases([]); }}
-              className="secondary-btn small"
+              className={styles.smallBtnGlass}
             >
-              Back to Selection
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+              Reset Session
             </button>
           </div>
 
-          <div className="translation-tome">
+          <div className={styles.translationTome}>
             {translations.map((result, index) => (
-              <div key={index} className="translation-entry glass-card fade-in">
-                <section className="entry-header">
-                  <div className="e-label">Input Source</div>
-                  <h4>"{result.englishPhrase}"</h4>
-                </section>
-
-                <div className="version-split">
-                  <div className="v-card literal">
-                    <span className="v-tag">Literal Construct</span>
-                    <p className="v-text">"{result.translation.literal}"</p>
-                  </div>
-                  <div className="v-card natural active">
-                    <span className="v-tag">Natural Reflection</span>
-                    <p className="v-text featured">"{result.translation.natural}"</p>
+              <div key={index} className={`${styles.translationEntryPremium} ${styles.fadeIn} glass-card`}>
+                <div className={styles.entryHeaderMinimal}>
+                  <div className={styles.sourceDisplay}>
+                    <span className={styles.sourceMarker}>EN</span>
+                    <h4>{result.englishPhrase}</h4>
                   </div>
                 </div>
 
-                <div className="entry-grid">
-                  <div className="g-section">
-                    <h6>Semantic Logic</h6>
-                    <p className="g-text">{result.translation.explanation}</p>
+                <div className={styles.premiumSplitView}>
+                  <div className={`${styles.viewPanel} ${styles.literalPanel}`}>
+                    <div className={styles.panelHeader}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+                      Literal Construction
+                    </div>
+                    <div className={styles.panelContent}>
+                      <p className={styles.translationTextMuted}>{result.translation.literal}</p>
+                    </div>
+                  </div>
+
+                  <div className={`${styles.viewPanel} ${styles.naturalPanel}`}>
+                    <div className={`${styles.panelHeader} ${styles.activeHeader}`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 12 5 5L20 7" /></svg>
+                      Natural Reflection
+                    </div>
+                    <div className={styles.panelContent}>
+                      <p className={styles.translationTextFeatured}>{result.translation.natural}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.premiumDetailsGrid}>
+                  <div className={`${styles.detailSection} ${styles.logicSection}`}>
+                    <h5>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+                      Semantic Logic
+                    </h5>
+                    <p className={styles.logicText}>{result.translation.explanation}</p>
                     {result.translation.culturalNotes && (
-                      <div className="cultural-aside">
-                        <span className="aside-tag">Cultural Context</span>
+                      <div className={styles.premiumCulturalTag}>
+                        <span className={styles.innerTag}>Cultural Insight</span>
                         <p>{result.translation.culturalNotes}</p>
                       </div>
                     )}
                   </div>
-                  <div className="g-section">
-                    <h6>Acquisition Vectors</h6>
-                    <ul className="tip-list">
-                      {result.learningTips.map((tip, i) => <li key={i}>{tip}</li>)}
-                    </ul>
+
+                  <div className={`${styles.detailSection} ${styles.tipsSection}`}>
+                    <h5>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+                      Acquisition Vectors
+                    </h5>
+                    <div className={styles.premiumTipStack}>
+                      {result.learningTips.map((tip, i) => (
+                        <div key={i} className={styles.premiumTipItem}>
+                          <span className={styles.tipBullet}></span>
+                          {tip}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <footer className="entry-footer">
-                  <div className="style-validators">
-                    <span className={`v-pill ${result.styleMatching.tonePreserved ? 'pass' : ''}`}>Tone Match</span>
-                    <span className={`v-pill ${result.styleMatching.formalityAdjusted ? 'pass' : ''}`}>Style Vector</span>
-                    <span className={`v-pill ${result.styleMatching.personalityMaintained ? 'pass' : ''}`}>Persona Identity</span>
+                <footer className={styles.premiumEntryFooter}>
+                  <div className={styles.styleValidatorsV2}>
+                    <div className={`${styles.neonPill} ${result.styleMatching.tonePreserved ? styles.active : ''}`}>
+                      <span className={styles.dot}></span> Tone
+                    </div>
+                    <div className={`${styles.neonPill} ${result.styleMatching.formalityAdjusted ? styles.active : ''}`}>
+                      <span className={styles.dot}></span> Vector
+                    </div>
+                    <div className={`${styles.neonPill} ${result.styleMatching.personalityMaintained ? styles.active : ''}`}>
+                      <span className={styles.dot}></span> Identity
+                    </div>
                   </div>
                   {onPronunciationPractice && (
                     <button
                       onClick={() => onPronunciationPractice(result.englishPhrase, result.translation.natural)}
-                      className="primary-btn practice-btn"
+                      className={styles.premiumActionBtn}
                     >
-                      🎤 Activate Voice Lab
+                      <span className="btn-icon">🎤</span>
+                      Voice Lab
                     </button>
                   )}
                 </footer>
@@ -203,90 +242,7 @@ export const SpanishTranslations: React.FC<SpanishTranslationsProps> = ({
           </div>
         </div>
       )}
-
-      <style jsx>{styles}</style>
     </div>
   );
 };
 
-const styles = `
-    .spanish-translations-module { max-width: 900px; margin: 0 auto; }
-    .module-header { text-align: center; margin-bottom: var(--space-xl); }
-    .module-header h2 { font-size: 2.2rem; margin: var(--space-md) 0; color: var(--text-primary); }
-    .module-header p { color: var(--text-secondary); opacity: 0.8; max-width: 600px; margin: 0 auto; line-height: 1.6; }
-    .highlight { color: var(--primary); }
-
-    .badge-pill {
-        display: inline-block;
-        background: rgba(99, 102, 241, 0.1);
-        color: var(--primary);
-        padding: 0.2rem 0.8rem;
-        border-radius: var(--radius-full);
-        font-size: 0.7rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        border: 1px solid rgba(99, 102, 241, 0.2);
-    }
-
-    /* Selection View */
-    .selection-view { padding: var(--space-xl) !important; }
-    .selection-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); }
-    .selection-actions { display: flex; gap: 1rem; }
-    .small-text-btn { background: none; border: none; color: var(--text-secondary); font-size: 0.8rem; font-weight: 700; cursor: pointer; text-decoration: underline; }
-
-    .phrase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl); }
-    .phrase-tile { padding: var(--space-md) !important; display: flex; gap: var(--space-md); align-items: flex-start; cursor: pointer; transition: all 0.2s; background: rgba(0,0,0,0.1) !important; border: 1px solid var(--border-glass) !important; }
-    .phrase-tile:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.2) !important; }
-    .phrase-tile.active { border-color: var(--primary) !important; background: rgba(99, 102, 241, 0.05) !important; }
-
-    .tile-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-glass); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: white; font-weight: 900; }
-    .phrase-tile.active .tile-check { background: var(--primary); border-color: var(--primary); }
-    
-    .p-text { margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
-    .p-tag { font-size: 0.7rem; text-transform: uppercase; font-weight: 800; color: var(--text-secondary); opacity: 0.6; }
-
-    .selection-footer { display: flex; justify-content: center; }
-    .wide-btn { min-width: 320px; }
-    .load-row { display: flex; align-items: center; gap: 0.75rem; justify-content: center; }
-
-    /* Results View */
-    .results-control-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-xl); padding: 0 var(--space-sm); }
-    .translation-tome { display: flex; flex-direction: column; gap: var(--space-xl); }
-    .translation-entry { padding: 0 !important; overflow: hidden; }
-
-    .entry-header { padding: var(--space-lg) var(--space-xl); background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-glass); }
-    .e-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--primary); margin-bottom: 0.2rem; }
-    .entry-header h4 { margin: 0; font-size: 1.3rem; color: var(--text-primary); }
-
-    .version-split { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border-glass); }
-    .v-card { padding: var(--space-lg) var(--space-xl); display: flex; flex-direction: column; gap: 0.5rem; }
-    .v-card.natural { background: rgba(99, 102, 241, 0.05); }
-    .v-tag { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.6; }
-    .v-text { font-size: 1rem; color: var(--text-secondary); font-style: italic; }
-    .v-text.featured { font-size: 1.4rem; color: var(--accent); font-weight: 700; }
-
-    .entry-grid { padding: var(--space-xl); display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--space-xl); }
-    .g-section h6 { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 1rem; }
-    .g-text { font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin: 0; }
-
-    .cultural-aside { margin-top: var(--space-lg); padding: var(--space-md); background: rgba(16, 185, 129, 0.05); border-radius: var(--radius-md); border-left: 2px solid var(--accent); }
-    .aside-tag { font-size: 0.65rem; font-weight: 800; color: var(--accent); text-transform: uppercase; }
-    .cultural-aside p { margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary); }
-
-    .tip-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    .tip-list li { font-size: 0.85rem; color: var(--text-secondary); padding-left: 1rem; position: relative; }
-    .tip-list li::before { content: '•'; position: absolute; left: 0; color: var(--primary); font-weight: 900; }
-
-    .entry-footer { padding: var(--space-lg) var(--space-xl); background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
-    .style-validators { display: flex; gap: 0.5rem; }
-    .v-pill { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.4; padding: 0.2rem 0.6rem; border: 1px solid var(--border-glass); border-radius: var(--radius-full); }
-    .v-pill.pass { color: var(--accent); opacity: 1; border-color: var(--accent); background: rgba(16, 185, 129, 0.05); }
-
-    .practice-btn { padding: 0.5rem 1.2rem; font-size: 0.85rem; }
-
-    @media (max-width: 800px) {
-        .version-split, .entry-grid { grid-template-columns: 1fr; }
-        .entry-footer { flex-direction: column; gap: var(--space-lg); }
-    }
-`;

@@ -3,6 +3,7 @@ import { usePhrasesApi } from '../hooks/usePhrasesApi';
 
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;
+  resultIndex: number;
 }
 
 interface SpeechRecognitionResultList {
@@ -12,6 +13,7 @@ interface SpeechRecognitionResultList {
 
 interface SpeechRecognitionResult {
   isFinal: boolean;
+  length: number;
   [index: number]: SpeechRecognitionAlternative;
 }
 
@@ -22,17 +24,20 @@ interface SpeechRecognitionAlternative {
 
 interface SpeechRecognitionErrorEvent {
   error: string;
+  message?: string;
 }
 
 interface SpeechRecognitionInstance {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
+  onstart: (() => void) | null;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
+  abort: () => void;
 }
 
 interface BackgroundRecorderProps {
@@ -49,6 +54,8 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
   isActive
 }) => {
   const [isListening, setIsListening] = useState(false);
+  const [status, setStatus] = useState<'ready' | 'initializing' | 'listening' | 'error' | 'reconnecting'>('ready');
+  const [error, setError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [detectedPhrases, setDetectedPhrases] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -63,6 +70,8 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const isListeningRef = useRef(false);
   const isActiveRef = useRef(isActive);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
   // Keep ref in sync with prop
   useEffect(() => {
@@ -105,44 +114,103 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
 
   const initSpeechRecognition = useCallback((): SpeechRecognitionInstance | null => {
     const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognitionConstructor) return null;
 
+    if (!SpeechRecognitionConstructor) {
+      console.error('[BackgroundRecorder] SpeechRecognition not supported in this browser');
+      return null;
+    }
+
+    console.log('[BackgroundRecorder] Initializing SpeechRecognition...');
     const recognition: SpeechRecognitionInstance = new SpeechRecognitionConstructor();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // Enabled interim results for debugging
     recognition.lang = 'en-US';
 
+    recognition.onstart = () => {
+      console.log('[BackgroundRecorder] Speech recognition service has started');
+      setStatus('listening');
+      retryCountRef.current = 0; // Reset retries on successful start
+    };
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const lastResult = event.results[event.results.length - 1];
-      if (lastResult.isFinal) {
-        const transcript = lastResult[0].transcript.trim();
-        const confidence = lastResult[0].confidence;
-        // Only save phrases with 3+ words that are meaningful
-        if (transcript.split(' ').length >= 3 && transcript.length > 10) {
-          setDetectedPhrases(prev => {
-            // Avoid duplicates
-            if (prev.includes(transcript)) return prev;
-            return [...prev, transcript].slice(-20); // Keep last 20
-          });
-          onPhraseDetected(transcript, confidence);
-          scheduleAutoSave(transcript); // Auto-save after delay
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          const transcript = event.results[i][0].transcript.trim();
+          const confidence = event.results[i][0].confidence;
+
+          console.log('[BackgroundRecorder] Final transcript:', transcript, 'Confidence:', confidence);
+
+          // Relaxed criteria for detection to be more responsive
+          if (transcript.split(' ').length >= 2 && transcript.length > 5) {
+            console.log('[BackgroundRecorder] Valid phrase detected:', transcript);
+            setDetectedPhrases(prev => {
+              if (prev.includes(transcript)) return prev;
+              return [...prev, transcript].slice(-20);
+            });
+            onPhraseDetected(transcript, confidence);
+            scheduleAutoSave(transcript);
+          } else if (transcript.length > 0) {
+            console.log('[BackgroundRecorder] Ignored short/invalid phrase:', transcript);
+          }
+        } else {
+          interimTranscript += event.results[i][0].transcript;
         }
+      }
+
+      if (interimTranscript) {
+        // Log interim transcript to see it's working
+        console.log('[BackgroundRecorder] Interim:', interimTranscript);
       }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error !== 'no-speech' && isActiveRef.current) {
-        setTimeout(() => {
-          if (speechRecognitionRef.current && isActiveRef.current) {
-            try { speechRecognitionRef.current.start(); } catch (e) { }
-          }
-        }, 1000);
+      console.error('[BackgroundRecorder] Speech recognition error:', event.error, event.message);
+
+      if (event.error === 'not-allowed') {
+        setError('Browser blocked microphone access. Check your address bar permissions.');
+        setStatus('error');
+        isListeningRef.current = false;
+        setIsListening(false);
+      } else if (event.error === 'no-speech') {
+        console.log('[BackgroundRecorder] No speech detected - keeping session alive');
+      } else if (event.error === 'audio-capture') {
+        setError('Microphone hardware not accessible. Is it plugged in?');
+        setStatus('error');
+      } else {
+        setError(`Speech error: ${event.error}`);
       }
     };
 
     recognition.onend = () => {
-      if (isActiveRef.current && speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.start(); } catch (e) { }
+      console.log('[BackgroundRecorder] Speech recognition service disconnected');
+
+      if (isActiveRef.current && isListeningRef.current) {
+        if (retryCountRef.current < MAX_RETRIES) {
+          setStatus('reconnecting');
+          console.log(`[BackgroundRecorder] Attempting to reconnect (${retryCountRef.current + 1}/${MAX_RETRIES})...`);
+          retryCountRef.current++;
+
+          setTimeout(() => {
+            if (isActiveRef.current && isListeningRef.current) {
+              try {
+                recognition.start();
+                console.log('[BackgroundRecorder] Re-connected successfully');
+              } catch (e) {
+                console.error('[BackgroundRecorder] Failed to re-connect:', e);
+                // If it fails to restart, it will likely trigger onend again or we'll stay in reconnecting
+              }
+            }
+          }, 1000);
+        } else {
+          setError('Speech service lost connection repeatedly. Please try stopping and starting again.');
+          setStatus('error');
+          isListeningRef.current = false;
+          setIsListening(false);
+        }
+      } else {
+        console.log('[BackgroundRecorder] Not restarting - session inactive');
+        setStatus('ready');
       }
     };
 
@@ -150,78 +218,122 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
   }, [onPhraseDetected, scheduleAutoSave]);
 
   const startListening = useCallback(async () => {
-    console.log('startListening called, current state:', { isListeningRef: isListeningRef.current });
-
-    // Set listening state immediately for UI feedback
-    isListeningRef.current = true;
-    setIsListening(true);
+    console.log('[BackgroundRecorder] startListening called');
+    setError(null);
+    setStatus('initializing');
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 }
-      });
-      console.log('Got media stream');
-      streamRef.current = stream;
-
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      const source = audioContextRef.current.createMediaStreamSource(stream);
-      source.connect(analyserRef.current);
-      analyserRef.current.fftSize = 256;
+      // 1. Initialize Speech Recognition first (preserves user gesture better in some browsers)
+      isListeningRef.current = true;
+      setIsListening(true);
+      retryCountRef.current = 0;
 
       speechRecognitionRef.current = initSpeechRecognition();
-      if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.start(); } catch (e) { console.log('Speech start error:', e); }
+      if (!speechRecognitionRef.current) {
+        throw new Error('Speech recognition not supported');
       }
 
-      console.log('Now listening - state updated');
-
-      const detectVoiceActivity = () => {
-        if (analyserRef.current) {
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-          setAudioLevel(average / 255);
+      try {
+        speechRecognitionRef.current.start();
+        console.log('[BackgroundRecorder] Speech engine start command sent');
+      } catch (e: any) {
+        if (e.name === 'InvalidStateError') {
+          console.log('[BackgroundRecorder] Speech already started');
+        } else {
+          console.error('[BackgroundRecorder] Speech engine start failed:', e);
+          throw e;
         }
-        animationRef.current = requestAnimationFrame(detectVoiceActivity);
-      };
+      }
 
-      detectVoiceActivity();
-    } catch (error) {
-      console.error('Core sensor initialization failure:', error);
-      // Reset state on error
+      // 2. Then set up Audio visualizer (optional, can fail without stopping speech)
+      try {
+        console.log('[BackgroundRecorder] Requesting microphone for visualizer...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true }
+        });
+        streamRef.current = stream;
+
+        if (audioContextRef.current) {
+          await audioContextRef.current.close().catch(() => { });
+        }
+
+        audioContextRef.current = new AudioContext();
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        source.connect(analyserRef.current);
+        analyserRef.current.fftSize = 256;
+
+        const detectVoiceActivity = () => {
+          if (analyserRef.current) {
+            const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            setAudioLevel(average / 255);
+          }
+          animationRef.current = requestAnimationFrame(detectVoiceActivity);
+        };
+        detectVoiceActivity();
+      } catch (audioErr) {
+        console.warn('[BackgroundRecorder] Visualizer failed to start:', audioErr);
+        // We don't throw here so that SpeechRecognition can still work even if visualizer fails
+      }
+
+      console.log('[BackgroundRecorder] Initialization sequence complete');
+    } catch (error: any) {
+      console.error('[BackgroundRecorder] Critical failure:', error);
+      setError(error.message || 'Failed to start background listening');
+      setStatus('error');
       isListeningRef.current = false;
       setIsListening(false);
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
     }
   }, [initSpeechRecognition]);
 
   const stopListening = useCallback(() => {
-    if (!isListeningRef.current) return; // Not listening
-    console.log('stopListening called');
+    console.log('[BackgroundRecorder] stopListening called');
+
     // Clear auto-save timer
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
+
     // Save any pending phrases on stop
     if (pendingPhrasesRef.current.length > 0) {
       autoSavePhrases(pendingPhrasesRef.current, true);
     }
+
     if (speechRecognitionRef.current) {
-      try { speechRecognitionRef.current.stop(); } catch (e) { }
+      try {
+        speechRecognitionRef.current.onend = null; // Remove listener to prevent restart
+        speechRecognitionRef.current.stop();
+        console.log('[BackgroundRecorder] Speech recognition stopped');
+      } catch (e) {
+        console.log('[BackgroundRecorder] Speech stop error:', e);
+      }
       speechRecognitionRef.current = null;
     }
+
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      try {
+        const ctx = audioContextRef.current;
+        ctx.close().catch(e => console.log('Context close err:', e));
+      } catch (e) { }
       audioContextRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+
     isListeningRef.current = false;
     setIsListening(false);
+    setStatus('ready');
     setAudioLevel(0);
   }, [autoSavePhrases]);
 
@@ -264,23 +376,56 @@ export const BackgroundRecorder: React.FC<BackgroundRecorderProps> = ({
 
   if (!isActive) return null;
 
+  const getStatusDisplay = () => {
+    switch (status) {
+      case 'listening': return 'Listening Live';
+      case 'initializing': return 'Finding Mic...';
+      case 'reconnecting': return 'Reconnecting...';
+      case 'error': return 'Service Failed';
+      default: return 'Ready to Listen';
+    }
+  };
+
   return (
     <div className="background-recorder-widget glass-card fade-in">
       <div className="widget-header">
         <div className="status-meta">
-          <div className={`status-orb ${isListening ? 'active' : ''}`} />
-          <span className="status-text">{isListening ? 'Listening' : 'Ready'}</span>
+          <div className={`status-orb ${status === 'listening' ? 'active' : status === 'error' ? 'error' : status === 'initializing' || status === 'reconnecting' ? 'pending' : ''}`} />
+          <span className="status-text">{getStatusDisplay()}</span>
         </div>
         <div className="level-monitor">
           <div className="level-fill" style={{ width: `${Math.max(5, audioLevel * 100)}%`, backgroundColor: audioLevel > SILENCE_THRESHOLD ? 'var(--primary)' : 'rgba(255,255,255,0.1)' }}></div>
         </div>
       </div>
 
-      {detectedPhrases.length > 0 && (
+      {error && (
+        <div className="error-panel">
+          <p className="error-msg">⚠️ {error}</p>
+          {(error.includes('permission') || error.includes('denied')) && (
+            <div className="permission-guide">
+              <p>To enable Background Mode, please:</p>
+              <ol>
+                <li>Click the <b>lock icon</b> 🔒 in your address bar</li>
+                <li>Ensure <b>Microphone</b> is set to <b>Allow</b></li>
+                <li>Select <b>"Reset permission"</b> if it's already allowed but not working</li>
+                <li>Refresh this page</li>
+              </ol>
+            </div>
+          )}
+          <button onClick={() => { setError(null); startListening(); }} className="retry-btn">Reset & Try Again</button>
+        </div>
+      )}
+
+      {detectedPhrases.length > 0 && !error && (
         <div className="widget-discovery fade-in">
           <header className="discovery-header">
             <h6>Phrases Detected ({detectedPhrases.length})</h6>
-            <button onClick={() => { setDetectedPhrases([]); pendingPhrasesRef.current = []; }} className="clear-link-btn">Reset</button>
+            <div className="discovery-actions">
+              <button onClick={handleAnalyzeNow} className="discovery-push-btn" disabled={isAnalyzing || isLoading}>
+                {isAnalyzing ? 'Saving...' : 'Force Save'}
+              </button>
+              <button onClick={() => { setDetectedPhrases([]); pendingPhrasesRef.current = []; }} className="clear-link-btn">Reset</button>
+            </div>
           </header>
 
           <div className="discovery-stack">
@@ -324,16 +469,44 @@ const styles = `
     .status-meta { display: flex; align-items: center; gap: 0.5rem; min-width: 80px; }
     .status-orb { width: 8px; height: 8px; border-radius: 50%; background: var(--text-secondary); opacity: 0.3; }
     .status-orb.active { background: var(--primary); opacity: 1; box-shadow: 0 0 10px var(--primary); animation: widget-pulse 2s infinite; }
+    .status-orb.error { background: #ef4444; opacity: 1; box-shadow: 0 0 10px #ef4444; }
+    .status-orb.pending { background: var(--warning); opacity: 1; animation: widget-pulse 1s infinite; }
     .status-text { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); }
+
+    .error-panel { background: rgba(239, 68, 68, 0.1); border-radius: 8px; padding: 1rem; margin-top: 0.5rem; border: 1px solid rgba(239, 68, 68, 0.2); text-align: left; }
+    .error-msg { font-size: 0.8rem; font-weight: 700; color: #fca5a5; margin: 0 0 0.5rem 0; line-height: 1.4; display: flex; align-items: center; gap: 0.5rem; }
+    .permission-guide { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.5; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 6px; }
+    .permission-guide ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+    .permission-guide b { color: var(--primary); }
+    
+    .retry-btn { background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer; width: 100%; transition: all 0.2s; }
+    .retry-btn:hover { background: #dc2626; transform: translateY(-1px); }
 
     .level-monitor { flex: 1; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; overflow: hidden; }
     .level-fill { height: 100%; border-radius: 2px; transition: width 0.1s ease, background-color 0.2s ease; }
 
     .widget-discovery { border-top: 1px solid var(--border-glass); padding-top: 0.75rem; }
     .discovery-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-    .discovery-header h6 { margin: 0; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); opacity: 0.6; }
-    .clear-link-btn { background: none; border: none; font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); cursor: pointer; text-decoration: underline; opacity: 0.5; }
-    .clear-link-btn:hover { opacity: 1; }
+    .discovery-header h6 { margin: 0; font-size: 0.75rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .discovery-actions { display: flex; gap: 0.5rem; align-items: center; }
+    
+    .discovery-push-btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+    }
+    .discovery-push-btn:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
+    .discovery-push-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .clear-link-btn { background: none; border: none; padding: 0; color: var(--text-secondary); font-size: 0.65rem; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+    .clear-link-btn:hover { color: var(--text-primary); }
 
     .discovery-stack { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.75rem; }
     .discovery-bubble { font-size: 0.75rem; color: var(--text-primary); padding: 0.6rem; background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-sm); border-left: 2px solid var(--primary); line-height: 1.4; }

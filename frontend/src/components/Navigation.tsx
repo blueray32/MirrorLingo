@@ -4,13 +4,15 @@ import styles from './Navigation.module.css';
 
 interface NavigationProps {
   currentPage?: 'home' | 'conversation' | 'tutor' | 'analytics';
+  isListening?: boolean;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ currentPage = 'home' }) => {
+export const Navigation: React.FC<NavigationProps> = ({ currentPage = 'home', isListening }) => {
   return (
     <nav className={styles.mainNav}>
       <Link href="/" className={styles.navLogo}>
         <span className={styles.logoText}>MirrorLingo</span>
+        {isListening && <div className={styles.listeningDot} title="Live Listening Active" />}
       </Link>
 
       <div className={styles.navLinks}>

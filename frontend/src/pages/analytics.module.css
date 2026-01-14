@@ -1,5 +1,5 @@
 .container {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -15,4 +15,39 @@
 
 .emptyState p {
   color: var(--text-secondary);
+}
+
+.analyticsContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.detailedAnalysis {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.detailedAnalysis h3 {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .container {
+    max-width: 100%;
+    padding: 0 1rem;
+  }
+  
+  .analyticsContent {
+    gap: 2rem;
+  }
+  
+  .detailedAnalysis {
+    padding: 1.5rem;
+  }
 }

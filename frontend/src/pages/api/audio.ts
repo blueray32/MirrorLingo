@@ -29,7 +29,7 @@ interface TranscriptionResult {
 
 // Mock transcription for demo purposes
 // In production, this would call AWS Transcribe or similar service
-const mockTranscribe = async (audioData: string): Promise<TranscriptionResult> => {
+const mockTranscribe = async (_audioData: string): Promise<TranscriptionResult> => {
     // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -108,7 +108,7 @@ export default async function handler(
     }
 
     try {
-        const { audioData, contentType } = req.body as AudioRequestBody;
+        const { audioData } = req.body as AudioRequestBody;
         const userId = req.headers['x-user-id'] as string;
 
         if (!userId) {

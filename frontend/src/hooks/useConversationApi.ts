@@ -55,6 +55,13 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
   const generateId = () => `msg-${Date.now()}-${++idCounter.current}`;
 
   const startConversation = useCallback((topic: ConversationTopic) => {
+    // Clear any existing conversation for fresh start
+    try {
+      localStorage.removeItem(`${STORAGE_KEY}-${userId}`);
+    } catch (error) {
+      console.warn('Failed to clear conversation history:', error);
+    }
+    
     setCurrentTopic(topic);
     const initialMessages = [{
       id: generateId(),
@@ -65,7 +72,7 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
     setMessages(initialMessages);
     messagesRef.current = initialMessages;
     setError(null);
-  }, []);
+  }, [userId]);
 
   const clearConversation = useCallback(() => {
     setMessages([]);
@@ -117,6 +124,8 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
       }
 
       const result = await response.json();
+      console.log('API Response:', result);
+      console.log('Response text:', result.data?.response);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to get response');
@@ -128,6 +137,8 @@ export const useConversationApi = (userId: string): UseConversationApiReturn => 
         content: result.data.response,
         timestamp: new Date()
       };
+      
+      console.log('Creating assistant message with content:', result.data.response);
 
       setMessages(prev => {
         const updated = [...prev, assistantMessage];

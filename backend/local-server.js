@@ -172,22 +172,68 @@ app.post('/api/audio', async (req, res) => {
     });
 });
 
-// 4. Multi-Phrase Translation
+// 4. Multi-Phrase Translation (using Ollama)
+const backendTranslationCache = new Map();
+
 app.post('/api/translations', async (req, res) => {
     const { phrases, profile } = req.body;
+
     const results = await Promise.all(phrases.map(async p => {
+        const cacheKey = p.toLowerCase().trim();
+
+        // Check cache first
+        if (backendTranslationCache.has(cacheKey)) {
+            console.log(`[translations] Backend cache hit for: "${p}"`);
+            return backendTranslationCache.get(cacheKey);
+        }
+
         try {
-            const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(p)}&langpair=en|es`);
-            const data = await response.json();
-            const trans = data.responseData.translatedText;
-            return {
-                englishPhrase: p,
-                translation: { literal: trans, natural: trans, explanation: "Natural translation", confidence: 0.9, formalityLevel: profile?.overallFormality || 'informal' },
-                styleMatching: { tonePreserved: true, formalityAdjusted: true, personalityMaintained: true },
-                learningTips: ["Practice this aloud."]
-            };
-        } catch (e) { return { englishPhrase: p, translation: { literal: p, natural: p } }; }
+            if (OLLAMA_API_URL) {
+                const systemPrompt = `You are an English-Spanish translator. Translate the given English phrase to Spanish.
+Reply with ONLY the Spanish translation, nothing else. Be natural and conversational.
+Do not include quotes or explanations.`;
+
+                const response = await fetch(OLLAMA_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: MODEL_NAME,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: `Translate to Spanish: "${p}"` }
+                        ],
+                        stream: false,
+                        options: { temperature: 0.3, num_predict: 100 }
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const trans = data.message?.content?.trim()
+                        .replace(/^["']|["']$/g, '')
+                        .replace(/^Translation:\s*/i, '')
+                        .trim() || p;
+
+                    console.log(`[translations] Ollama translated: "${p}" -> "${trans}"`);
+
+                    const result = {
+                        englishPhrase: p,
+                        translation: { literal: trans, natural: trans, explanation: "Natural translation", confidence: 0.9, formalityLevel: profile?.overallFormality || 'informal' },
+                        styleMatching: { tonePreserved: true, formalityAdjusted: true, personalityMaintained: true },
+                        learningTips: ["Practice this aloud."]
+                    };
+
+                    backendTranslationCache.set(cacheKey, result);
+                    return result;
+                }
+            }
+            throw new Error('Ollama unavailable');
+        } catch (e) {
+            console.warn(`[translations] Ollama failed for "${p}":`, e.message);
+            return { englishPhrase: p, translation: { literal: p, natural: p } };
+        }
     }));
+
     res.json({ success: true, data: { translations: results } });
 });
 
@@ -213,6 +259,379 @@ app.post('/api/letta/sync-profile', (req, res) => {
     const userId = req.headers['x-user-id'];
     console.log(`Syncing profile for user ${userId} to Letta`);
     res.json({ success: true });
+});
+
+// Spaced Repetition Sync Endpoints
+app.post('/api/letta/sync-spaced-repetition', (req, res) => {
+    const userId = req.headers['x-user-id'];
+    const { reviewItems, deviceId } = req.body;
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Syncing ${reviewItems?.length || 0} review items for user ${userId} from device ${deviceId}`);
+
+    // Mock sync - in real implementation, this would sync to Letta
+    const syncResult = {
+        success: true,
+        syncedItems: reviewItems?.length || 0,
+        lastSyncTimestamp: new Date()
+    };
+
+    res.json(syncResult);
+});
+
+app.get('/api/letta/get-spaced-repetition', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting spaced repetition data for user ${userId}`);
+
+    // Mock response - in real implementation, this would fetch from Letta
+    const mockData = {
+        reviewItems: [],
+        syncStatus: {
+            isEnabled: true,
+            lastSync: new Date(),
+            pendingSync: false,
+            itemCount: 0,
+            conflicts: 0
+        }
+    };
+
+    res.json(mockData);
+});
+
+// Conversation Memory Endpoints
+app.get('/api/conversation-memory/relationship-status', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting relationship status for user ${userId}`);
+
+    // Mock relationship status - in real implementation, this would fetch from Letta
+    const mockRelationshipStatus = {
+        level: 'friend',
+        progressToNext: 65,
+        daysSinceFirstMeeting: 14,
+        totalConversations: 12,
+        favoriteTopics: ['daily_life', 'hobbies', 'food'],
+        recentMemories: [
+            'User mentioned loving coffee',
+            'User works in technology',
+            'User has a cat named Luna'
+        ]
+    };
+
+    res.json({ relationshipStatus: mockRelationshipStatus });
+});
+
+app.get('/api/conversation-memory/conversation-memory', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting conversation memory for user ${userId}`);
+
+    // Mock conversation memory - in real implementation, this would fetch from Letta
+    const mockConversationMemory = {
+        userId,
+        personalDetails: [
+            {
+                id: 'detail_1',
+                category: 'work',
+                detail: 'User works in technology',
+                confidence: 0.9,
+                importance: 'medium'
+            },
+            {
+                id: 'detail_2',
+                category: 'hobbies',
+                detail: 'User loves coffee',
+                confidence: 0.8,
+                importance: 'low'
+            }
+        ],
+        relationshipLevel: 'friend',
+        tutorPersonality: {
+            name: 'María',
+            characteristics: ['friendly', 'patient', 'encouraging'],
+            relationshipStyle: 'friendly'
+        },
+        totalConversations: 12,
+        lastInteraction: new Date()
+    };
+
+    res.json({ conversationMemory: mockConversationMemory });
+});
+
+// Pronunciation Evolution Endpoints
+app.get('/api/pronunciation-evolution/phoneme-progress', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting phoneme progress for user ${userId}`);
+
+    // Mock phoneme progress data
+    const mockPhonemeProgress = [
+        {
+            phoneme: 'rr',
+            category: 'trill',
+            difficulty: 'very_hard',
+            currentAccuracy: 65,
+            improvementRate: 2.3,
+            masteryLevel: 'developing',
+            practiceCount: 15,
+            targetAccuracy: 85,
+            personalizedTips: ['Relax your tongue', 'Start with single R', 'Practice "erre" sound']
+        },
+        {
+            phoneme: 'ñ',
+            category: 'consonant',
+            difficulty: 'hard',
+            currentAccuracy: 78,
+            improvementRate: 1.8,
+            masteryLevel: 'proficient',
+            practiceCount: 12,
+            targetAccuracy: 85,
+            personalizedTips: ['Touch tongue to roof of mouth', 'Like "ny" in canyon', 'Practice "niño"']
+        },
+        {
+            phoneme: 'll',
+            category: 'consonant',
+            difficulty: 'medium',
+            currentAccuracy: 82,
+            improvementRate: 0.5,
+            masteryLevel: 'proficient',
+            practiceCount: 8,
+            targetAccuracy: 85,
+            personalizedTips: ['Soft "y" sound in most regions', 'Practice "llamar"']
+        }
+    ];
+
+    res.json({ phonemeProgress: mockPhonemeProgress });
+});
+
+app.get('/api/pronunciation-evolution/coaching', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting coaching program for user ${userId}`);
+
+    // Mock coaching program
+    const mockCoachingProgram = {
+        currentFocus: ['rr', 'ñ'],
+        recommendedExercises: [
+            {
+                id: 'rr_practice_1',
+                type: 'repetition',
+                targetPhonemes: ['rr'],
+                difficulty: 3,
+                estimatedDuration: 5,
+                description: 'Practice rolling R with "perro", "carro", "ferrocarril"',
+                examples: ['perro', 'carro', 'ferrocarril']
+            },
+            {
+                id: 'n_practice_1',
+                type: 'minimal_pairs',
+                targetPhonemes: ['ñ'],
+                difficulty: 2,
+                estimatedDuration: 3,
+                description: 'Distinguish ñ from n: "año/ano", "niño/nino"',
+                examples: ['año - ano', 'niño - nino', 'señor - senor']
+            }
+        ],
+        nextMilestone: {
+            id: 'first_rr',
+            title: 'First Rolling R',
+            description: 'Successfully pronounce "rr" with 70% accuracy',
+            requiredAccuracy: 70,
+            achieved: false
+        }
+    };
+
+    res.json({ coachingProgram: mockCoachingProgram });
+});
+
+app.post('/api/pronunciation-evolution/track-progress', (req, res) => {
+    const userId = req.headers['x-user-id'];
+    const { phonemeScores, context } = req.body;
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Tracking pronunciation progress for user ${userId}:`, phonemeScores);
+
+    // Mock analysis result
+    const mockAnalysisResult = {
+        improvementDetected: Math.random() > 0.5,
+        regressionDetected: false,
+        newMilestones: [],
+        evolutionSummary: Math.random() > 0.7 ?
+            '🎉 Great improvement in rolling R pronunciation!' :
+            Math.random() > 0.5 ?
+                '📈 Steady progress in Spanish pronunciation!' :
+                '🔄 Keep practicing - consistency is key!'
+    };
+
+    res.json({ analysisResult: mockAnalysisResult });
+});
+
+// Mistake Pattern Learning Endpoints
+app.get('/api/mistake-patterns/categories', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting mistake categories for user ${userId}`);
+
+    // Mock mistake categories
+    const mockMistakeCategories = [
+        {
+            type: 'ser_vs_estar',
+            totalOccurrences: 8,
+            improvementRate: 1.2,
+            masteryLevel: 'developing',
+            focusLevel: 'high',
+            lastPracticed: new Date(),
+            targetAccuracy: 80,
+            currentAccuracy: 65
+        },
+        {
+            type: 'gender_agreement',
+            totalOccurrences: 5,
+            improvementRate: 0.8,
+            masteryLevel: 'improving',
+            focusLevel: 'medium',
+            lastPracticed: new Date(),
+            targetAccuracy: 80,
+            currentAccuracy: 72
+        },
+        {
+            type: 'verb_conjugation',
+            totalOccurrences: 3,
+            improvementRate: -0.2,
+            masteryLevel: 'struggling',
+            focusLevel: 'high',
+            lastPracticed: new Date(),
+            targetAccuracy: 80,
+            currentAccuracy: 58
+        }
+    ];
+
+    res.json({ mistakeCategories: mockMistakeCategories });
+});
+
+app.get('/api/mistake-patterns/lessons', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting personalized lessons for user ${userId}`);
+
+    // Mock personalized lessons
+    const mockPersonalizedLessons = [
+        {
+            id: 'ser_vs_estar_basics',
+            title: 'Master Ser vs Estar',
+            targetMistakes: ['ser_vs_estar'],
+            difficulty: 3,
+            estimatedDuration: 5,
+            content: {
+                explanation: 'The key difference: SER for permanent characteristics, ESTAR for temporary states and locations.',
+                rule: 'Use SER for identity, characteristics, time, origin. Use ESTAR for location, emotions, ongoing actions.',
+                commonErrors: ['Soy en casa', 'Estoy médico', 'Es en el parque'],
+                tips: ['Remember: SER = permanent, ESTAR = temporary', 'Location always uses ESTAR', 'Emotions use ESTAR']
+            },
+            examples: [
+                {
+                    incorrect: 'Soy en casa',
+                    correct: 'Estoy en casa',
+                    explanation: 'Location requires ESTAR',
+                    context: 'Talking about where you are'
+                }
+            ],
+            completionStatus: 'not_started'
+        },
+        {
+            id: 'gender_agreement_basics',
+            title: 'Gender Agreement Mastery',
+            targetMistakes: ['gender_agreement'],
+            difficulty: 2,
+            estimatedDuration: 4,
+            content: {
+                explanation: 'Spanish nouns have gender (masculine/feminine) and adjectives must agree.',
+                rule: 'Masculine nouns typically end in -o, feminine in -a. Adjectives change to match.',
+                commonErrors: ['La problema', 'Un casa grande', 'El agua fría'],
+                tips: ['Learn noun gender with the article', 'Some words are exceptions (el problema, la mano)']
+            },
+            examples: [
+                {
+                    incorrect: 'La problema',
+                    correct: 'El problema',
+                    explanation: 'Problema is masculine despite ending in -a',
+                    context: 'Common exception to gender rules'
+                }
+            ],
+            completionStatus: 'in_progress'
+        }
+    ];
+
+    res.json({ personalizedLessons: mockPersonalizedLessons });
+});
+
+app.get('/api/mistake-patterns/trends', (req, res) => {
+    const userId = req.headers['x-user-id'];
+
+    if (!userId) {
+        return res.status(401).json({ error: 'User authentication required' });
+    }
+
+    console.log(`Getting improvement trends for user ${userId}`);
+
+    // Mock improvement trends
+    const mockImprovementTrends = [
+        {
+            mistakeType: 'ser_vs_estar',
+            overallTrend: 'improving',
+            recentImprovement: true,
+            plateauDetected: false
+        },
+        {
+            mistakeType: 'gender_agreement',
+            overallTrend: 'stable',
+            recentImprovement: false,
+            plateauDetected: true
+        },
+        {
+            mistakeType: 'verb_conjugation',
+            overallTrend: 'declining',
+            recentImprovement: false,
+            plateauDetected: false
+        }
+    ];
+
+    res.json({ improvementTrends: mockImprovementTrends });
 });
 
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));

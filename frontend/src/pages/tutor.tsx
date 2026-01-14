@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import Layout from '../components/Layout';
 import { PracticeSession } from '../components/PracticeSession';
 import { TrainingMixer } from '../components/TrainingMixer';
@@ -29,7 +30,7 @@ export default function TutorPage() {
     const fetchTranslations = async () => {
       if (phrases.length === 0) return;
       setIsLoadingTranslations(true);
-      
+
       try {
         const response = await fetch('/api/translations', {
           method: 'POST',
@@ -39,7 +40,7 @@ export default function TutorPage() {
             profile: profile
           })
         });
-        
+
         const result = await response.json();
         if (result.success) {
           const transMap: Record<string, string> = {};
@@ -54,7 +55,7 @@ export default function TutorPage() {
         setIsLoadingTranslations(false);
       }
     };
-    
+
     fetchTranslations();
   }, [phrases, profile]);
 
@@ -94,7 +95,7 @@ export default function TutorPage() {
           <div className="empty-state glass-card">
             <h3>No Phrases Yet</h3>
             <p>Record some phrases on the Home page to start your tutoring.</p>
-            <a href="/" className="primary-btn">Go to Home</a>
+            <Link href="/" className="primary-btn">Go to Home</Link>
           </div>
         ) : (
           <div className="tutor-board glass-card">
@@ -150,7 +151,7 @@ export default function TutorPage() {
                         phrase={{
                           ...p,
                           spanishText: translations[p.englishText] || 'Loading...'
-                        } as any}
+                        }}
                       />
                     ))
                   )}
@@ -159,11 +160,21 @@ export default function TutorPage() {
 
               {activeTab === 'training' && (
                 <div className="component-container">
-                  <TrainingMixer
-                    phrases={phrases}
-                    profile={profile!}
-                    onComplete={handleSessionComplete}
-                  />
+                  {isLoadingTranslations ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Loading translations for training...</p>
+                    </div>
+                  ) : (
+                    <TrainingMixer
+                      phrases={phrases.map(p => ({
+                        ...p,
+                        spanishText: translations[p.englishText] || ''
+                      }))}
+                      profile={profile!}
+                      onComplete={handleSessionComplete}
+                    />
+                  )}
                 </div>
               )}
 
@@ -186,9 +197,9 @@ export default function TutorPage() {
                         <button
                           key={p.phraseId}
                           className={`phrase-select-btn ${selectedPhrase?.english === p.englishText ? 'active' : ''}`}
-                          onClick={() => setSelectedPhrase({ 
-                            english: p.englishText, 
-                            spanish: translations[p.englishText] || p.englishText 
+                          onClick={() => setSelectedPhrase({
+                            english: p.englishText,
+                            spanish: translations[p.englishText] || p.englishText
                           })}
                         >
                           {p.englishText}

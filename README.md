@@ -11,6 +11,10 @@ MirrorLingo revolutionizes language learning by analyzing your unique English sp
 - **Voice & Text Analysis**: Record yourself or type daily phrases for AI-powered idiolect analysis
 - **Personalized Spanish**: Dual translations (literal + natural) that preserve your communication style
 - **Spaced Repetition**: SM-2 algorithm for optimal long-term retention
+- **Cross-Device Sync**: Letta-powered learning continuity across web and mobile platforms
+- **Relationship Building**: AI tutor remembers conversations and builds authentic relationships over time
+- **Grammar Focus Integration**: Real-time mistake detection and personalized micro-lessons
+- **Pronunciation Evolution**: Phoneme-specific progress tracking with personalized accent coaching
 - **Real-time Processing**: AWS Transcribe integration with speech metrics analysis
 - **Progressive Web App**: Install on mobile devices for on-the-go learning
 
@@ -24,7 +28,8 @@ MirrorLingo revolutionizes language learning by analyzing your unique English sp
 2. **Watch AI analysis**: Real-time idiolect pattern detection (2 seconds)
 3. **Generate Spanish**: Dual translations with style preservation
 4. **🆕 AI Conversation**: Interactive Spanish conversations with personalized AI tutor
-5. **Practice session**: Interactive spaced repetition with SM-2 algorithm
+5. **🆕 Grammar Coaching**: Get real-time feedback on verb conjugations and gender agreement
+6. **Practice session**: Interactive spaced repetition with SM-2 algorithm
 6. **Voice recording**: AWS Transcribe integration with speech metrics
 7. **Analytics dashboard**: View progress, patterns, and personalized insights
 8. **Pronunciation practice**: Record yourself and get detailed feedback
@@ -44,6 +49,10 @@ MirrorLingo revolutionizes language learning by analyzing your unique English sp
 - **Idiolect Preservation**: AI maintains user's personality in Spanish translations
 - **🆕 AI Conversation Practice**: Real-time Spanish conversations with personalized AI tutor
 - **🆕 Native Mobile App**: React Native with superior audio recording and offline sync
+- **🆕 Cross-Device Sync**: Letta-powered spaced repetition sync across web and mobile
+- **🆕 Relationship Building**: AI tutor remembers conversations and builds authentic relationships
+- **🆕 Grammar Intelligence**: Pattern-based error detection with personalized coaching
+- **🆕 Pronunciation Evolution**: Long-term phoneme tracking with personalized accent coaching
 - **Speech Metrics**: WPM, filler words, pauses, confidence analysis
 - **Adaptive Learning**: SM-2 spaced repetition with performance tracking
 - **Real-time Voice**: Background recording with phrase segmentation
@@ -367,12 +376,21 @@ MirrorLingo/
 - **Interactive Practice**: Complete practice session component
 - **Adaptive Intervals**: Dynamic scheduling based on user performance
 
+### ✅ Smart Learning Recommendations
+- **Grammar-Driven Conversation Topics**: Suggests specific conversation topics based on grammar mistakes (e.g., Daily Routine for verb conjugation issues)
+- **Conversation-Driven Pronunciation**: Recommends pronunciation exercises based on phonemes that appear in conversation errors
+- **Integrated Practice Sessions**: Combines spaced repetition with conversation practice for maximum efficiency
+- **Cross-Feature Intelligence**: Analyzes relationships between grammar, pronunciation, and conversation performance
+- **Personalized Learning Paths**: AI-powered recommendations that adapt to individual learning patterns
+- **Priority-Based Suggestions**: High, medium, and low priority recommendations based on learning impact
+
 ### ✅ Advanced Analytics Dashboard
-- **Learning Progress**: Visual progress tracking with completion percentages
-- **Pattern Analysis**: Detailed breakdown of speaking patterns and their impact
-- **Milestone Tracking**: Achievement system with completed and upcoming goals
-- **Personalized Insights**: AI-driven recommendations based on user data
-- **Multi-tab Interface**: Overview, Progress, and Patterns sections
+- **Unified Learning View**: Combines all learning data into comprehensive progress tracking
+- **Achievement System**: Gamified milestones across conversation, pronunciation, grammar, and vocabulary
+- **Personalized Insights**: AI-driven analysis of strengths, improvements, and learning milestones
+- **Cross-Feature Analytics**: Relationships between pronunciation, grammar, conversation, and vocabulary progress
+- **Progress Visualization**: Interactive charts and metrics showing overall learning trajectory
+- **Smart Learning Tab**: Dedicated section for AI-powered cross-feature recommendations
 
 ### ✅ AI Conversation Practice
 - **Real-time Conversations**: Chat with AI tutor in Spanish using voice or text
@@ -387,6 +405,18 @@ MirrorLingo/
 - **Idiolect Evolution**: AI tutor builds long-term understanding of your speaking patterns
 - **Cross-Device Sync**: Your learning progress follows you across devices
 - **Graceful Fallback**: Works with localStorage when Letta unavailable
+
+### ✅ Grammar Focus Integration (NEW)
+- **Real-time Detection**: Analyzes 5+ categories (Verb Conjugation, Gender Agreement, Ser vs Estar, etc.)
+- **Personalized Lessons**: Generates `MicroLessons` based on your specific mistake patterns
+- **Progress Tracking**: Mastery levels and focus levels for each grammar area
+- **Conversation Link**: Connects pronunciation errors with related grammar difficulties
+
+![Conversation Interface](file:///Users/ciarancox/.gemini/antigravity/brain/2495dd06-73db-4831-bd9e-00703b131fa3/conversation_interface_1768171799380.png)
+*Enhanced Conversation Interface with Style Preservation*
+
+![Mastery Dashboard](file:///Users/ciarancox/.gemini/antigravity/brain/2495dd06-73db-4831-bd9e-00703b131fa3/mastery_dashboard_1768171812530.png)
+*Advanced Analytics showing Grammar Mastery and Mistake Patterns*
 
 ### ✅ Native Mobile Application
 - **React Native Architecture**: Cross-platform iOS and Android support

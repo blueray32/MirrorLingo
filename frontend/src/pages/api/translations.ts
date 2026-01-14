@@ -48,6 +48,13 @@ interface MyMemoryResponse {
   responseStatus: number
 }
 
+// Ollama configuration
+const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'http://host.docker.internal:11434/api/chat';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b';
+
+// In-memory cache for translations (persists during server uptime)
+const translationCache: Record<string, { translation: string; confidence: number }> = {};
+
 // Expand common English contractions to full words for better translation
 function expandContractions(text: string): string {
   const contractions: Record<string, string> = {
@@ -102,33 +109,68 @@ function expandContractions(text: string): string {
   return result;
 }
 
-// Translate using MyMemory free API
-async function translateWithMyMemory(text: string): Promise<{ translation: string; confidence: number }> {
-  try {
-    // Expand contractions first for better translation quality
-    const expandedText = expandContractions(text);
-    console.log(`Translating: "${text}" -> expanded: "${expandedText}"`);
+// Translate using Ollama (local LLM) - replaces MyMemory API
+async function translateWithOllama(text: string): Promise<{ translation: string; confidence: number }> {
+  // Expand contractions first for better translation quality
+  const expandedText = expandContractions(text);
+  const cacheKey = expandedText.toLowerCase().trim();
 
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(expandedText)}&langpair=en|es`;
-    const response = await fetch(url);
+  // Check cache first
+  if (translationCache[cacheKey]) {
+    console.log(`[translations] Cache hit for: "${text}"`);
+    return translationCache[cacheKey];
+  }
+
+  try {
+    console.log(`[translations] Translating: "${text}" -> expanded: "${expandedText}"`);
+
+    const systemPrompt = `You are an English-Spanish translator. Translate the given English phrase to Spanish.
+Reply with ONLY the Spanish translation, nothing else. Be natural and conversational.
+Do not include quotes or explanations.`;
+
+    const response = await fetch(OLLAMA_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Translate to Spanish: "${expandedText}"` }
+        ],
+        stream: false,
+        options: {
+          temperature: 0.3,
+          num_predict: 100
+        }
+      })
+    });
 
     if (!response.ok) {
-      throw new Error(`MyMemory API error: ${response.status}`);
+      throw new Error(`Ollama API error: ${response.status}`);
     }
 
-    const data: MyMemoryResponse = await response.json();
+    const data = await response.json();
+    const translation = data.message?.content?.trim() || expandedText;
 
-    if (data.responseStatus !== 200) {
-      throw new Error('Translation failed');
-    }
+    // Clean up the translation (remove quotes, extra punctuation)
+    const cleanTranslation = translation
+      .replace(/^[\"']|[\"']$/g, '')
+      .replace(/^Translation:\\s*/i, '')
+      .trim();
 
-    return {
-      translation: data.responseData.translatedText,
-      confidence: data.responseData.match
+    const result = {
+      translation: cleanTranslation,
+      confidence: 0.9 // Ollama doesn't provide confidence, so we use a reasonable default
     };
+
+    // Cache the result
+    translationCache[cacheKey] = result;
+    console.log(`[translations] Cached translation: "${text}" -> "${cleanTranslation}"`);
+
+    return result;
   } catch (error) {
-    console.error('MyMemory translation error:', error);
-    // Fallback to the original text if translation fails
+    console.error('[translations] Ollama translation error:', error);
+    // Return original text as fallback
     return {
       translation: text,
       confidence: 0
@@ -176,7 +218,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Translate all phrases in parallel
     const translationPromises = phrases.map(async (phrase): Promise<TranslationResult> => {
       // Get the literal translation
-      const { translation: literalTranslation, confidence } = await translateWithMyMemory(phrase);
+      const { translation: literalTranslation, confidence } = await translateWithOllama(phrase);
 
       // For natural translation, adjust based on formality
       const formality = profile?.overallFormality || 'informal';

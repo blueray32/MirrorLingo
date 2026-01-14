@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { SpacedRepetitionScheduler, ReviewItem, PerformanceRating } from '../utils/spacedRepetition'
 import { Phrase, IdiolectProfile } from '../types/phrases'
 import { usePronunciationAnalysis } from '../hooks/usePronunciationAnalysis'
+import { useSpacedRepetitionSync } from '../hooks/useSpacedRepetitionSync'
 import { PronunciationWaveform } from './PronunciationWaveform'
 
 interface PracticeSessionProps {
@@ -49,6 +50,14 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     clearResults
   } = usePronunciationAnalysis('demo-user')
 
+  // Spaced repetition sync hook
+  const {
+    isEnabled: isSyncEnabled,
+    isSyncing,
+    syncReviewItems,
+    getReviewItems
+  } = useSpacedRepetitionSync(profile.userId)
+
   // Fetch translations for all phrases
   useEffect(() => {
     const fetchTranslations = async () => {
@@ -91,27 +100,46 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
   useEffect(() => {
     if (isLoading) return;
 
-    // Convert phrases to review items
-    const items: ReviewItem[] = phrases.map(phrase => ({
-      id: phrase.phraseId,
-      content: phrase.englishText,
-      // Use the fetched translation, or fallback to a generic message if missing
-      translation: translations[phrase.englishText] || 'Translation unavailable',
-      easeFactor: 2.5,
-      interval: 1,
-      repetitions: 0,
-      nextReview: new Date(),
-      createdAt: new Date(phrase.createdAt),
-      lastReviewed: null
-    }))
+    const initializeReviewItems = async () => {
+      let items: ReviewItem[] = [];
 
-    const dueItems = scheduler.getDueItems(items)
-    setReviewItems(dueItems)
+      // Try to get existing review items from sync first
+      if (isSyncEnabled) {
+        try {
+          const syncedItems = await getReviewItems();
+          if (syncedItems.length > 0) {
+            items = syncedItems;
+          }
+        } catch (error) {
+          console.error('Failed to get synced items:', error);
+        }
+      }
 
-    if (dueItems.length > 0) {
-      setCurrentItem(dueItems[0])
-    }
-  }, [phrases, scheduler, translations, isLoading])
+      // If no synced items, create new ones from phrases
+      if (items.length === 0) {
+        items = phrases.map(phrase => ({
+          id: phrase.phraseId,
+          content: phrase.englishText,
+          translation: translations[phrase.englishText] || 'Translation unavailable',
+          easeFactor: 2.5,
+          interval: 1,
+          repetitions: 0,
+          nextReview: new Date(),
+          createdAt: new Date(phrase.createdAt),
+          lastReviewed: null
+        }));
+      }
+
+      const dueItems = scheduler.getDueItems(items);
+      setReviewItems(dueItems);
+
+      if (dueItems.length > 0) {
+        setCurrentItem(dueItems[0]);
+      }
+    };
+
+    initializeReviewItems();
+  }, [phrases, scheduler, translations, isLoading, isSyncEnabled, getReviewItems])
 
   if (isLoading) {
     return (
@@ -152,7 +180,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     );
   }
 
-  const handleRating = (rating: PerformanceRating) => {
+  const handleRating = async (rating: PerformanceRating) => {
     if (!currentItem) return
 
     const updatedItem = scheduler.processReview(currentItem, rating)
@@ -163,6 +191,20 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
     }
 
     setSessionStats(newStats)
+
+    // Update review items with the processed item
+    const updatedReviewItems = reviewItems.map(item => 
+      item.id === currentItem.id ? updatedItem : item
+    );
+
+    // Sync updated items if sync is enabled
+    if (isSyncEnabled) {
+      try {
+        await syncReviewItems(updatedReviewItems);
+      } catch (error) {
+        console.error('Failed to sync review items:', error);
+      }
+    }
 
     // Move to next item
     const remainingItems = reviewItems.filter(item => item.id !== currentItem.id)
@@ -232,6 +274,11 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({
             <div className="progress-info">
               <span>Task {sessionStats.reviewed + 1} of {reviewItems.length}</span>
               <span>{Math.round(progressPercent)}%</span>
+              {isSyncEnabled && (
+                <span className={`sync-status ${isSyncing ? 'syncing' : 'synced'}`}>
+                  {isSyncing ? '🔄 Syncing...' : '✅ Synced'}
+                </span>
+              )}
             </div>
             <div className="progress-bar-bg">
               <div className="progress-bar-fill" style={{ width: `${progressPercent}%` }}></div>

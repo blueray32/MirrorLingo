@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { usePronunciationAnalysis } from '../hooks/usePronunciationAnalysis';
+import { usePronunciationEvolution } from '../hooks/usePronunciationEvolution';
 import { PronunciationWaveform } from './PronunciationWaveform';
 
 interface PronunciationFeedbackProps {
@@ -30,9 +31,13 @@ export const PronunciationFeedback: React.FC<PronunciationFeedbackProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState<PronunciationFeedback | null>(null);
+  const [evolutionResult, setEvolutionResult] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Pronunciation evolution tracking
+  const { trackProgress } = usePronunciationEvolution(userId);
 
   // Real-time pronunciation analysis
   const {
@@ -58,9 +63,25 @@ export const PronunciationFeedback: React.FC<PronunciationFeedbackProps> = ({
   // Handle real-time analysis completion
   React.useEffect(() => {
     if (analysisResult && !isRealTimeRecording && !isRealTimeAnalyzing) {
+      // Track pronunciation progress for evolution
+      const trackEvolution = async () => {
+        try {
+          // Extract phoneme scores from analysis result (simplified for demo)
+          const phonemeScores = extractPhonemeScores(analysisResult, spanishPhrase);
+          const result = await trackProgress(phonemeScores, spanishPhrase);
+          
+          if (result) {
+            setEvolutionResult(result.evolutionSummary);
+          }
+        } catch (error) {
+          console.error('Error tracking pronunciation evolution:', error);
+        }
+      };
+
+      trackEvolution();
       onComplete(analysisResult.overallScore);
     }
-  }, [analysisResult, isRealTimeRecording, isRealTimeAnalyzing, onComplete]);
+  }, [analysisResult, isRealTimeRecording, isRealTimeAnalyzing, onComplete, trackProgress, spanishPhrase]);
 
   const playExample = () => {
     const utterance = new SpeechSynthesisUtterance(spanishPhrase);
@@ -220,6 +241,13 @@ export const PronunciationFeedback: React.FC<PronunciationFeedbackProps> = ({
         {showError && (
           <div className="error-banner">
             <p>⚠️ {showError}</p>
+          </div>
+        )}
+        
+        {evolutionResult && (
+          <div className="evolution-result">
+            <div className="evolution-icon">🎯</div>
+            <div className="evolution-text">{evolutionResult}</div>
           </div>
         )}
       </div>
@@ -440,4 +468,44 @@ const styles = `
       font-size: 0.9rem;
       font-weight: 600;
   }
+
+  .evolution-result {
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+      padding: 0.75rem;
+      border-radius: var(--radius-md);
+      margin-top: var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+  }
+
+  .evolution-icon {
+      font-size: 1.2rem;
+  }
 `;
+
+// Helper function to extract phoneme scores from analysis result
+function extractPhonemeScores(analysisResult: any, spanishPhrase: string): Record<string, number> {
+  // Simplified phoneme extraction for demo
+  const phonemeScores: Record<string, number> = {};
+  
+  // Extract common Spanish phonemes from the phrase
+  const phrase = spanishPhrase.toLowerCase();
+  
+  if (phrase.includes('rr')) phonemeScores['rr'] = analysisResult.overallScore * 0.8;
+  if (phrase.includes('ñ')) phonemeScores['ñ'] = analysisResult.overallScore * 0.9;
+  if (phrase.includes('ll')) phonemeScores['ll'] = analysisResult.overallScore * 0.85;
+  if (phrase.includes('j')) phonemeScores['j'] = analysisResult.overallScore * 0.75;
+  
+  // Add vowel scores
+  ['a', 'e', 'i', 'o', 'u'].forEach(vowel => {
+    if (phrase.includes(vowel)) {
+      phonemeScores[vowel] = analysisResult.overallScore * (0.9 + Math.random() * 0.1);
+    }
+  });
+  
+  return phonemeScores;
+}

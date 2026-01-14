@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useConversationApi } from '../hooks/useConversationApi';
-import { useAudioApi } from '../hooks/useAudioApi';
+import { useConversationMemory } from '../hooks/useConversationMemory';
+import { useMistakePatterns } from '../hooks/useMistakePatterns';
+import { ConversationRelationshipIndicator } from './ConversationRelationshipIndicator';
+import { SpanishTextWithTooltips } from './SpanishTextWithTooltips';
 import { ConversationTopic, TOPIC_LABELS } from '../types/conversation';
 
 interface ConversationPracticeProps {
   userId: string;
+  topic: ConversationTopic;
   userProfile?: {
     tone: string;
     formality: string;
@@ -13,18 +17,57 @@ interface ConversationPracticeProps {
   onSessionComplete?: (session?: { messageCount: number }) => void;
 }
 
+// Web Speech API types
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
 export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
   userId,
+  topic,
   userProfile,
   onSessionComplete
 }) => {
   const [inputText, setInputText] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState<ConversationTopic | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
+  const [speechError, setSpeechError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Conversation memory hook
+  const {
+    relationshipStatus,
+    conversationMemory,
+    isLoading: memoryLoading,
+    refreshMemory
+  } = useConversationMemory(userId);
+
+  // Mistake patterns hook
+  const {
+    mistakeCategories,
+    personalizedLessons,
+    refreshPatterns
+  } = useMistakePatterns(userId);
 
   const {
     messages,
@@ -36,24 +79,63 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
     clearConversation
   } = useConversationApi(userId);
 
-  const { uploadAudio, isUploading, uploadError, transcriptionResult, clearError: clearAudioError } = useAudioApi();
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle successful transcription
+  // Start conversation when component mounts with topic
   useEffect(() => {
-    if (transcriptionResult) {
-      setInputText(transcriptionResult.transcript);
+    startConversation(topic);
+  }, [topic, startConversation]);
+
+  // Initialize Web Speech API
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'es-ES'; // Spanish recognition
+
+      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        setInputText(finalTranscript || interimTranscript);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setSpeechError(event.error === 'not-allowed' ? 'Microphone access denied' : 'Speech recognition error');
+        setIsRecording(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
     }
-  }, [transcriptionResult]);
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleSend = async () => {
     if (!inputText.trim() || isLoading) return;
     await sendMessage(inputText);
     setInputText('');
-    clearAudioError();
+    setSpeechError(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -63,90 +145,29 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
     }
   };
 
-  const handleTopicSelect = (topic: ConversationTopic) => {
-    setSelectedTopic(topic);
-    startConversation(topic);
-  };
-
   const handleEndSession = () => {
     const session = { messageCount: messages.length };
     clearConversation();
-    setSelectedTopic(null);
     onSessionComplete?.(session);
   };
 
-  const startRecording = useCallback(async () => {
-    try {
-      clearAudioError();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-
-      const chunks: Blob[] = [];
-      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        await uploadAudio(blob, userId);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      setRecordingStartTime(Date.now());
-    } catch (err) {
-      console.error('Failed to start recording', err);
-      alert('Microphone access denied');
+  const toggleRecording = useCallback(() => {
+    if (!recognitionRef.current) {
+      setSpeechError('Speech recognition not supported in this browser');
+      return;
     }
-  }, [userId, uploadAudio, clearAudioError]);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    if (isRecording) {
+      recognitionRef.current.stop();
       setIsRecording(false);
-      setRecordingStartTime(null);
+    } else {
+      setSpeechError(null);
+      recognitionRef.current.start();
+      setIsRecording(true);
     }
   }, [isRecording]);
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  };
-
-  const error = apiError || uploadError;
-
-  // Topic selection screen
-  if (!selectedTopic) {
-    return (
-      <div className="conversation-practice fade-in">
-        <div className="topic-card glass-card">
-          <header className="topic-header">
-            <span className="badge-pill">Immersive Practice</span>
-            <h2>Fluent Conversation</h2>
-            <p>Select a scenario to start practicing Spanish with your personalized AI tutor.</p>
-          </header>
-
-          <div className="topics-grid">
-            {(Object.keys(TOPIC_LABELS) as ConversationTopic[]).map(topic => (
-              <button
-                key={topic}
-                className="topic-choice-btn glass-card"
-                onClick={() => handleTopicSelect(topic)}
-              >
-                <span className="topic-icon">
-                  {topic === 'travel' ? '✈️' : topic === 'food' ? '🍽️' : topic === 'work' ? '💼' : '💬'}
-                </span>
-                <span className="topic-label">{TOPIC_LABELS[topic]}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <style jsx>{styles}</style>
-      </div>
-    );
-  }
+  const error = apiError || speechError;
 
   // Conversation screen
   return (
@@ -162,6 +183,33 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
           </button>
         </header>
 
+        {/* Relationship Indicator */}
+        <ConversationRelationshipIndicator
+          relationshipStatus={relationshipStatus}
+          tutorName={conversationMemory?.tutorPersonality?.name}
+          isLoading={memoryLoading}
+        />
+
+        {/* Grammar Focus Areas */}
+        {mistakeCategories.length > 0 && (
+          <div className="grammar-focus-indicator">
+            <div className="focus-header">
+              <span className="focus-icon">🎯</span>
+              <span className="focus-title">Grammar Focus</span>
+            </div>
+            <div className="focus-areas">
+              {mistakeCategories
+                .filter(cat => cat.focusLevel === 'high')
+                .slice(0, 2)
+                .map(category => (
+                  <span key={category.type} className="focus-area">
+                    {category.type.replace('_', ' ')} ({category.currentAccuracy}%)
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="messages-viewport">
           {messages.length === 0 && !isLoading && (
             <div className="intro-msg">
@@ -173,18 +221,21 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
           {messages.map(msg => (
             <div key={msg.id} className={`message-bubble ${msg.role}`}>
               <div className="bubble-content">
-                {msg.content}
+                {msg.role === 'assistant' || msg.role === 'user' ? (
+                  <SpanishTextWithTooltips text={msg.content} />
+                ) : (
+                  msg.content
+                )}
               </div>
             </div>
           ))}
 
-          {(isLoading || isUploading) && (
+          {isLoading && (
             <div className="message-bubble assistant loading">
               <div className="bubble-content typing-box">
                 <div className="typing-dots">
                   <span></span><span></span><span></span>
                 </div>
-                {isUploading && <span className="upload-text">Transcribing...</span>}
               </div>
             </div>
           )}
@@ -207,7 +258,7 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
               onKeyDown={handleKeyDown}
               placeholder="Escribe en español..."
               rows={1}
-              disabled={isLoading || isUploading}
+              disabled={isLoading}
               className="chat-textarea"
             />
 
@@ -215,7 +266,7 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
               <button
                 className={`icon-btn ${isRecording ? 'is-recording' : ''}`}
                 onClick={toggleRecording}
-                disabled={isLoading || isUploading}
+                disabled={isLoading}
                 title={isRecording ? 'Stop Recording' : 'Start Voice Input'}
               >
                 {isRecording ? '⏹️' : '🎤'}
@@ -223,7 +274,7 @@ export const ConversationPractice: React.FC<ConversationPracticeProps> = ({
 
               <button
                 onClick={handleSend}
-                disabled={!inputText.trim() || isLoading || isUploading}
+                disabled={!inputText.trim() || isLoading}
                 className="send-action"
               >
                 <span className="send-icon">↗️</span>
@@ -461,6 +512,39 @@ const styles = `
   .error-notice { padding: 0.75rem var(--space-lg); background: rgba(239, 68, 68, 0.1); color: var(--danger); font-size: 0.85rem; font-weight: 600; display: flex; gap: 0.5rem; }
 
   .chat-hint { padding: 0.75rem; text-align: center; color: var(--text-secondary); opacity: 0.6; font-size: 0.8rem; }
+
+  .grammar-focus-indicator {
+      background: rgba(99, 102, 241, 0.05);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+  }
+
+  .focus-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+  }
+
+  .focus-icon { font-size: 1rem; }
+  .focus-title { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
+
+  .focus-areas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+  }
+
+  .focus-area {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 500;
+  }
 
   @keyframes bounce { 0%, 80%, 100% { transform: scale(0.3); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
   @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }

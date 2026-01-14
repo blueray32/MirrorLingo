@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Phrase } from '../types/phrases';
 
 interface QuickPhraseCardProps {
@@ -11,6 +11,35 @@ export const QuickPhraseCard: React.FC<QuickPhraseCardProps> = ({
   onAudioClick
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const speakSpanish = useCallback(() => {
+    if (!phrase.spanishText || phrase.spanishText === 'Loading...') return;
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(phrase.spanishText);
+    utterance.lang = 'es-ES'; // Spanish (Spain)
+    utterance.rate = 0.9; // Slightly slower for learning
+    utterance.pitch = 1.0;
+
+    // Try to find a Spanish voice
+    const voices = window.speechSynthesis.getVoices();
+    const spanishVoice = voices.find(v => v.lang.startsWith('es'));
+    if (spanishVoice) {
+      utterance.voice = spanishVoice;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+
+    // Also call the optional callback if provided
+    onAudioClick?.();
+  }, [phrase.spanishText, onAudioClick]);
 
   return (
     <div
@@ -33,13 +62,14 @@ export const QuickPhraseCard: React.FC<QuickPhraseCardProps> = ({
             <p className="primary-text">{phrase.spanishText}</p>
             <div className="card-footer">
               <button
-                className="action-btn"
+                className={`action-btn ${isSpeaking ? 'speaking' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAudioClick?.();
+                  speakSpanish();
                 }}
+                disabled={isSpeaking}
               >
-                🔊 Listen
+                {isSpeaking ? '🔊 Playing...' : '🔊 Listen'}
               </button>
             </div>
           </div>
@@ -157,6 +187,22 @@ export const QuickPhraseCard: React.FC<QuickPhraseCardProps> = ({
         .action-btn:hover {
           transform: scale(1.05);
           box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-btn.speaking {
+          background: var(--primary);
+          color: white;
+          animation: pulse-speaking 1s ease-in-out infinite;
+        }
+
+        .action-btn:disabled {
+          cursor: default;
+          transform: none;
+        }
+
+        @keyframes pulse-speaking {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
         }
 
         .tap-hint {

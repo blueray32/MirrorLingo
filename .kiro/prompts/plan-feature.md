@@ -93,6 +93,37 @@ So that <benefit/value>
 - Understand database/model patterns if applicable
 - Identify authentication/authorization patterns if relevant
 
+**6. Mobile Platform Analysis** (Required for React Native features)
+
+If the feature involves mobile (MirrorLingoMobile/), run `@mobile-audit` and document:
+
+- **Version Compatibility**:
+  - Current React Native version and New Architecture status
+  - Hermes engine enabled/disabled
+  - Known issues for this RN version
+
+- **Native Dependencies**:
+  - Run `@dependency-check` for each new package
+  - Verify packages exist and are compatible
+  - Document alternatives for problematic packages
+  - Reference `.kiro/steering/mobile.md` for known issues
+
+- **Platform Permissions**:
+  - iOS: Required Info.plist entries
+  - Android: Required AndroidManifest.xml permissions
+
+- **Build Strategy**:
+  - Metro bundler vs embedded bundle for demo
+  - Platform targets (iOS only vs both)
+  - CDN fallbacks for native dependencies
+
+- **Offline Considerations**:
+  - AsyncStorage data structure
+  - Date serialization strategy
+  - Sync behavior when online
+
+Reference: `.kiro/steering/mobile.md` for patterns and troubleshooting
+
 **Clarify Ambiguities:**
 
 - If requirements are unclear at this point, ask the user to clarify before you continue

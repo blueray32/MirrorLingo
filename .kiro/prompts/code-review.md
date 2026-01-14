@@ -74,6 +74,16 @@ For each changed file or new file, analyze for:
    - Logging standards
    - Testing standards
 
+6. **Mobile-Specific Issues** (for React Native code in MirrorLingoMobile/)
+   - Date serialization: JSON.parse returns strings, not Date objects
+   - Callback closures: Event handlers may capture stale state
+   - AsyncStorage: Keys should be namespaced, data properly serialized
+   - Async initialization: Race conditions during component mount
+   - Native permissions: Required entries in Info.plist/AndroidManifest
+   - Offline fallback: API calls should handle network unavailable
+
+   Reference: `.kiro/steering/mobile.md` for patterns
+
 ## Verify Issues Are Real
 
 - Run specific tests for issues found

@@ -1,5 +1,7 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { LettaService } from './lettaService';
+import { ConversationMemoryService } from './conversationMemoryService';
+import { MistakePatternService } from './mistakePatternService';
 
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-1'
@@ -40,14 +42,24 @@ export class ConversationService {
     userMessage: string,
     context: ConversationContext
   ): Promise<ConversationResponse> {
+    // Get enhanced conversation memory
+    const conversationMemory = await ConversationMemoryService.getConversationMemory(context.userId);
+    const relationshipStatus = await ConversationMemoryService.getRelationshipStatus(context.userId);
+    
     // Get Letta memory summary if available
     const lettaMemory = await LettaService.getMemorySummary();
-    const systemPrompt = this.buildSystemPrompt(context, lettaMemory);
+    const systemPrompt = this.buildSystemPrompt(context, lettaMemory, conversationMemory, relationshipStatus);
     const messages = this.buildMessages(userMessage, context);
 
     try {
       const response = await this.invokeModel(systemPrompt, messages);
       const parsed = this.parseResponse(response);
+      
+      // Analyze conversation for memory updates (non-blocking)
+      this.updateConversationMemory(context.userId, userMessage, parsed.message, context.topic).catch(() => {});
+      
+      // Analyze mistakes for pattern learning (non-blocking)
+      this.analyzeMistakePatterns(context.userId, userMessage, parsed.correction).catch(() => {});
       
       // Sync conversation to Letta (non-blocking)
       LettaService.syncConversation(userMessage, parsed.message).catch(() => {});
@@ -62,7 +74,12 @@ export class ConversationService {
     }
   }
 
-  private static buildSystemPrompt(context: ConversationContext, lettaMemory?: string): string {
+  private static buildSystemPrompt(
+    context: ConversationContext, 
+    lettaMemory?: string,
+    conversationMemory?: any,
+    relationshipStatus?: any
+  ): string {
     const idiolectInfo = context.userIdiolect
       ? `The user's speaking style is ${context.userIdiolect.tone} and ${context.userIdiolect.formality}. 
          They tend to use: ${context.userIdiolect.patterns.join(', ')}.
@@ -70,6 +87,18 @@ export class ConversationService {
       : '';
 
     const memoryContext = lettaMemory ? `\nPersistent Memory: ${lettaMemory}` : '';
+    
+    const relationshipContext = relationshipStatus ? 
+      `\nRelationship Context: You are at ${relationshipStatus.level} level with this user. 
+       You've had ${relationshipStatus.totalConversations} conversations together.
+       Recent memories: ${relationshipStatus.recentMemories.slice(0, 3).join(', ')}.
+       Favorite topics: ${relationshipStatus.favoriteTopics.join(', ')}.
+       Adjust your familiarity and references accordingly.` : '';
+
+    const tutorPersonality = conversationMemory?.tutorPersonality ? 
+      `\nTutor Personality: You are ${conversationMemory.tutorPersonality.name}, 
+       characterized as ${conversationMemory.tutorPersonality.characteristics.join(', ')}.
+       Maintain consistency with your established personality.` : '';
 
     return `You are a friendly Spanish conversation tutor for MirrorLingo. 
 Your role is to have natural conversations in Spanish while helping the user practice.
@@ -81,8 +110,10 @@ RULES:
 4. Adapt your formality to match the user's style
 5. Stay on topic: ${context.topic}
 6. Be encouraging and supportive
+7. Reference past conversations and personal details when appropriate
+8. Build on the relationship naturally over time
 
-${idiolectInfo}${memoryContext}
+${idiolectInfo}${memoryContext}${relationshipContext}${tutorPersonality}
 
 RESPONSE FORMAT (JSON):
 {
@@ -143,5 +174,43 @@ RESPONSE FORMAT (JSON):
       // If JSON parsing fails, use raw response
     }
     return { message: response };
+  }
+
+  private static async updateConversationMemory(
+    userId: string,
+    userMessage: string,
+    assistantMessage: string,
+    topic: string
+  ): Promise<void> {
+    try {
+      const memoryUpdate = await ConversationMemoryService.analyzeConversationForMemory(
+        userId,
+        userMessage,
+        assistantMessage,
+        topic
+      );
+
+      await ConversationMemoryService.updateConversationMemory(userId, memoryUpdate);
+    } catch (error) {
+      console.error('Error updating conversation memory:', error);
+    }
+  }
+
+  private static async analyzeMistakePatterns(
+    userId: string,
+    userMessage: string,
+    correction?: { original: string; corrected: string; explanation: string }
+  ): Promise<void> {
+    try {
+      if (correction) {
+        await MistakePatternService.analyzeMistakesFromConversation(
+          userId,
+          userMessage,
+          correction
+        );
+      }
+    } catch (error) {
+      console.error('Error analyzing mistake patterns:', error);
+    }
   }
 }

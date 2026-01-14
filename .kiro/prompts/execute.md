@@ -11,6 +11,31 @@ Read plan file: `$ARGUMENTS`
 
 ## Execution Instructions
 
+### 0. Plan Verification (REQUIRED)
+
+**Before executing ANY implementation, verify a plan exists:**
+
+1. Check that `$ARGUMENTS` points to a valid plan file in `.agents/plans/`
+2. If no plan file exists or path is invalid:
+   - **STOP execution immediately**
+   - Inform the user: "No valid plan found. Run `@plan-feature <feature-name>` first."
+   - Do NOT proceed with ad-hoc implementation
+
+**Why This Matters:**
+- Plans prevent reactive problem-solving by surfacing issues during research
+- The @plan-feature command's dependency analysis catches package/version issues upfront
+- Platform-specific considerations are documented before implementation begins
+- Demo vs production scope is pre-defined, preventing ad-hoc feature cuts
+
+**Exceptions:**
+- Bug fixes with clear scope (single file, obvious fix)
+- Documentation-only changes
+- Configuration updates
+
+For anything else, **plan first, execute second**.
+
+---
+
 ### 1. Read and Understand
 
 - Read the ENTIRE plan carefully
@@ -72,6 +97,20 @@ Before completing:
   - Verify data saves on user action
   - Verify data restores on component mount
   - Verify state clears appropriately (topic change, logout, etc.)
+
+### 5a. Mobile-Specific Validation (for React Native apps)
+
+If implementing mobile features, also verify:
+
+- ✅ App launches on iOS Simulator without Metro bundler errors
+- ✅ All native permissions prompt correctly (microphone, speech recognition)
+- ✅ Offline mode works when API is unreachable (fallback to mock/cached data)
+- ✅ Push notifications schedule correctly for spaced repetition
+- ✅ AsyncStorage data persists across app restarts
+- ✅ Date objects properly parsed after JSON.parse from storage
+- ✅ Voice recording callbacks don't capture stale closure state
+
+Reference: `.kiro/steering/mobile.md` for mobile-specific patterns and troubleshooting
 
 ## Output Report
 

@@ -31,159 +31,122 @@ export const TrainingMixer: React.FC<TrainingMixerProps> = ({
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [isGenerating, setIsGenerating] = useState(true);
 
-  // Generate mixed exercises from phrases
+  // Generate mixed exercises from phrases - SPANISH LEARNING focused
   const generateExercises = useCallback(() => {
     const mixedExercises: MixedExercise[] = [];
 
-    phrases.forEach((phrase, idx) => {
-      const text = phrase.englishText;
-      const words = text.split(' ');
+    phrases.forEach((phrase) => {
+      const englishText = phrase.englishText;
+      const spanishText = phrase.spanishText || '';
 
-      // Type 1: Fill in the blank - remove a key word
-      if (words.length >= 3) {
-        const keyWordIndex = Math.floor(words.length / 2);
-        const blankWord = words[keyWordIndex];
-        const exerciseWords = [...words];
+      // Skip phrases without Spanish translations
+      if (!spanishText) return;
+
+      const spanishWords = spanishText.split(' ');
+      const englishWords = englishText.split(' ');
+
+      // Type 1: Translation - Translate from English to Spanish
+      if (spanishWords.length >= 2) {
+        mixedExercises.push({
+          id: `translate-${phrase.phraseId}`,
+          type: 'fill_blank',
+          originalPhrase: englishText,
+          exercise: `Translate to Spanish: "${englishText}"`,
+          answer: spanishText.toLowerCase().replace(/[.,!?¡¿]/g, ''),
+          hint: `Starts with "${spanishWords[0]}"`,
+          difficulty: spanishWords.length > 6 ? 'hard' : spanishWords.length > 3 ? 'medium' : 'easy'
+        });
+      }
+
+      // Type 2: Spanish fill-in-the-blank - complete the Spanish sentence
+      if (spanishWords.length >= 3) {
+        const keyWordIndex = Math.floor(spanishWords.length / 2);
+        const blankWord = spanishWords[keyWordIndex];
+        const exerciseWords = [...spanishWords];
         exerciseWords[keyWordIndex] = '_____';
 
         mixedExercises.push({
           id: `fill-${phrase.phraseId}`,
           type: 'fill_blank',
-          originalPhrase: text,
-          exercise: exerciseWords.join(' '),
-          answer: blankWord.toLowerCase().replace(/[.,!?]/g, ''),
-          hint: `Starts with "${blankWord[0]}"`,
-          difficulty: words.length > 8 ? 'hard' : words.length > 5 ? 'medium' : 'easy'
+          originalPhrase: englishText,
+          exercise: `Complete the Spanish: ${exerciseWords.join(' ')}`,
+          answer: blankWord.toLowerCase().replace(/[.,!?¡¿]/g, ''),
+          hint: `English: "${englishText}"`,
+          difficulty: spanishWords.length > 6 ? 'hard' : spanishWords.length > 4 ? 'medium' : 'easy'
         });
       }
 
-      // Type 2: Word reorder - scramble the words
-      if (words.length >= 4 && words.length <= 10) {
-        const shuffled = [...words].sort(() => Math.random() - 0.5);
+      // Type 3: Spanish word reorder
+      if (spanishWords.length >= 3 && spanishWords.length <= 8) {
+        const shuffled = [...spanishWords].sort(() => Math.random() - 0.5);
         // Make sure it's actually shuffled
-        if (shuffled.join(' ') !== text) {
+        if (shuffled.join(' ') !== spanishText) {
           mixedExercises.push({
             id: `reorder-${phrase.phraseId}`,
             type: 'reorder',
-            originalPhrase: text,
-            exercise: shuffled.join(' / '),
-            answer: text.toLowerCase().replace(/[.,!?]/g, ''),
-            hint: `First word: "${words[0]}"`,
-            difficulty: words.length > 7 ? 'hard' : 'medium'
+            originalPhrase: englishText,
+            exercise: `Reorder to form: "${englishText}"\n${shuffled.join(' / ')}`,
+            answer: spanishText.toLowerCase().replace(/[.,!?¡¿]/g, ''),
+            hint: `First word: "${spanishWords[0]}"`,
+            difficulty: spanishWords.length > 5 ? 'hard' : 'medium'
           });
         }
       }
 
-      // Type 3: Transform - change tense/formality based on profile
-      const isQuestion = text.includes('?');
-      const hasContraction = /\b(I'm|you're|can't|won't|don't)\b/i.test(text);
+      // Type 4: Vocabulary recall - Spanish to English (multiple choice)
+      if (spanishWords.length <= 6) {
+        // Create distractor options based on other phrases
+        const otherEnglish = phrases
+          .filter(p => p.phraseId !== phrase.phraseId && p.spanishText)
+          .map(p => p.englishText)
+          .slice(0, 3);
 
-      if (hasContraction) {
-        // Expand contractions
-        const expanded = text
-          .replace(/I'm/gi, 'I am')
-          .replace(/you're/gi, 'you are')
-          .replace(/can't/gi, 'cannot')
-          .replace(/won't/gi, 'will not')
-          .replace(/don't/gi, 'do not')
-          .replace(/isn't/gi, 'is not')
-          .replace(/aren't/gi, 'are not');
-
-        mixedExercises.push({
-          id: `transform-${phrase.phraseId}`,
-          type: 'transform',
-          originalPhrase: text,
-          exercise: `Make this more formal: "${text}"`,
-          answer: expanded.toLowerCase().replace(/[.,!?]/g, ''),
-          hint: 'Expand the contractions',
-          difficulty: 'easy'
-        });
-      }
-
-      // Type 4: Context completion - complete a phrase in context
-      if (phrase.intent && words.length >= 5) {
-        const partialPhrase = words.slice(0, Math.ceil(words.length / 2)).join(' ');
-        mixedExercises.push({
-          id: `context-${phrase.phraseId}`,
-          type: 'context',
-          originalPhrase: text,
-          exercise: `Complete this ${phrase.intent} phrase: "${partialPhrase}..."`,
-          answer: words.slice(Math.ceil(words.length / 2)).join(' ').toLowerCase().replace(/[.,!?]/g, ''),
-          hint: `About ${phrase.intent}`,
-          difficulty: 'hard'
-        });
-      }
-
-      // Type 5: Synonym replacement - replace a word with its synonym
-      const synonymMap: Record<string, string[]> = {
-        'good': ['great', 'excellent', 'wonderful', 'fantastic'],
-        'bad': ['terrible', 'awful', 'horrible', 'poor'],
-        'big': ['large', 'huge', 'enormous', 'massive'],
-        'small': ['tiny', 'little', 'miniature', 'compact'],
-        'happy': ['joyful', 'cheerful', 'delighted', 'pleased'],
-        'sad': ['unhappy', 'depressed', 'miserable', 'gloomy'],
-        'fast': ['quick', 'rapid', 'speedy', 'swift'],
-        'slow': ['sluggish', 'gradual', 'leisurely', 'delayed']
-      };
-
-      for (const [word, synonyms] of Object.entries(synonymMap)) {
-        if (text.toLowerCase().includes(word)) {
-          const synonym = synonyms[Math.floor(Math.random() * synonyms.length)];
+        if (otherEnglish.length >= 2) {
+          const options = [englishText, ...otherEnglish].sort(() => Math.random() - 0.5);
           mixedExercises.push({
-            id: `synonym-${phrase.phraseId}-${word}`,
-            type: 'synonym',
-            originalPhrase: text,
-            exercise: `Replace "${word}" with a synonym: "${text}"`,
-            answer: text.toLowerCase().replace(new RegExp(word, 'gi'), synonym),
-            hint: `Think of another word for "${word}"`,
-            difficulty: 'medium',
-            options: [synonym, ...synonyms.filter(s => s !== synonym).slice(0, 2), word]
-          });
-          break;
-        }
-      }
-
-      // Type 6: Antonym challenge - find the opposite meaning
-      const antonymMap: Record<string, string> = {
-        'good': 'bad',
-        'happy': 'sad',
-        'big': 'small',
-        'fast': 'slow',
-        'hot': 'cold',
-        'light': 'dark',
-        'up': 'down',
-        'in': 'out'
-      };
-
-      for (const [word, antonym] of Object.entries(antonymMap)) {
-        if (text.toLowerCase().includes(word)) {
-          mixedExercises.push({
-            id: `antonym-${phrase.phraseId}-${word}`,
-            type: 'antonym',
-            originalPhrase: text,
-            exercise: `What's the opposite of "${word}" in: "${text}"?`,
-            answer: antonym,
-            hint: `Think of the opposite meaning`,
+            id: `vocab-${phrase.phraseId}`,
+            type: 'context',
+            originalPhrase: englishText,
+            exercise: `What does "${spanishText}" mean?`,
+            answer: englishText.toLowerCase().replace(/[.,!?]/g, ''),
+            hint: 'Think about the context',
             difficulty: 'easy',
-            options: [antonym, word, 'maybe', 'never'].sort(() => Math.random() - 0.5)
+            options: options
           });
-          break;
         }
       }
 
-      // Type 7: Pronunciation practice - identify stressed syllables
-      const multisyllableWords = words.filter(w => w.length > 6);
-      if (multisyllableWords.length > 0) {
-        const targetWord = multisyllableWords[0];
+      // Type 5: Spanish article/gender practice
+      const spanishArticles = ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas'];
+      const firstWord = spanishWords[0]?.toLowerCase();
+      if (spanishArticles.includes(firstWord) && spanishWords.length >= 2) {
+        const withoutArticle = spanishWords.slice(1).join(' ');
         mixedExercises.push({
-          id: `pronunciation-${phrase.phraseId}`,
-          type: 'pronunciation',
-          originalPhrase: text,
-          exercise: `Which syllable is stressed in "${targetWord}"?`,
-          answer: '1', // Simplified - first syllable
-          hint: 'Listen to how you naturally say this word',
-          difficulty: 'hard',
-          options: ['1st syllable', '2nd syllable', '3rd syllable', 'Last syllable']
+          id: `article-${phrase.phraseId}`,
+          type: 'fill_blank',
+          originalPhrase: englishText,
+          exercise: `Add the correct article: _____ ${withoutArticle}`,
+          answer: firstWord,
+          hint: 'el, la, un, or una?',
+          difficulty: 'easy',
+          options: ['el', 'la', 'un', 'una'].sort(() => Math.random() - 0.5)
+        });
+      }
+
+      // Type 6: Common Spanish verb conjugation hints
+      const verbEndings = ['ar', 'er', 'ir'];
+      const verbMatch = spanishWords.find(w =>
+        verbEndings.some(ending => w.toLowerCase().endsWith('o') || w.toLowerCase().endsWith('es') || w.toLowerCase().endsWith('e'))
+      );
+      if (verbMatch && spanishWords.length >= 3) {
+        mixedExercises.push({
+          id: `verb-${phrase.phraseId}`,
+          type: 'transform',
+          originalPhrase: englishText,
+          exercise: `Identify the verb in: "${spanishText}"`,
+          answer: verbMatch.toLowerCase().replace(/[.,!?¡¿]/g, ''),
+          hint: 'Look for action words',
+          difficulty: 'medium'
         });
       }
     });
@@ -193,6 +156,7 @@ export const TrainingMixer: React.FC<TrainingMixerProps> = ({
     setExercises(shuffled);
     setIsGenerating(false);
   }, [phrases]);
+
 
   useEffect(() => {
     generateExercises();

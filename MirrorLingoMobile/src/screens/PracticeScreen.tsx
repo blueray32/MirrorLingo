@@ -13,6 +13,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../App';
 import { mirrorLingoAPI, PhraseAnalysis } from '../services/api';
 import { SpacedRepetitionScheduler, ReviewItem, PerformanceRating } from '../utils/spacedRepetition';
+import { useSpacedRepetitionSync } from '../hooks/useSpacedRepetitionSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type PracticeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Practice'>;
@@ -43,6 +44,14 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
   const [sessionStartTime] = useState(() => Date.now());
 
   const scheduler = useMemo(() => new SpacedRepetitionScheduler(), []);
+
+  // Spaced repetition sync hook
+  const {
+    isEnabled: isSyncEnabled,
+    isSyncing,
+    syncReviewItems,
+    getReviewItems
+  } = useSpacedRepetitionSync('demo-user-mobile'); // Using demo user ID for now
 
   useEffect(() => {
     loadPhrases();
@@ -125,6 +134,20 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
     const updatedItem = scheduler.processReview(currentItem, rating);
     await saveProgress(updatedItem);
 
+    // Update review items with the processed item
+    const updatedReviewItems = reviewItems.map(item => 
+      item.id === currentItem.id ? updatedItem : item
+    );
+
+    // Sync updated items if sync is enabled
+    if (isSyncEnabled) {
+      try {
+        await syncReviewItems(updatedReviewItems);
+      } catch (error) {
+        console.error('Failed to sync review items:', error);
+      }
+    }
+
     // Update session stats
     const newStats = {
       reviewed: sessionStats.reviewed + 1,
@@ -205,6 +228,11 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={styles.progressText}>
               {currentIndex + 1} of {reviewItems.length}
             </Text>
+            {isSyncEnabled && (
+              <Text style={[styles.syncStatus, { color: isSyncing ? '#ff9500' : '#34c759' }]}>
+                {isSyncing ? '🔄 Syncing...' : '✅ Synced'}
+              </Text>
+            )}
           </View>
           <View style={styles.statsContainer}>
             <Text style={styles.statsText}>
@@ -534,6 +562,11 @@ const styles = StyleSheet.create({
     color: '#718096',
     fontSize: 14,
     fontWeight: '500',
+  },
+  syncStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
   },
   navigationContainer: {
     flexDirection: 'row',

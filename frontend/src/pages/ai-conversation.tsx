@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Head from 'next/head';
 import Layout from '../components/Layout';
 import { ConversationPractice } from '../components/ConversationPractice';
@@ -84,7 +84,7 @@ export default function AIConversation() {
                 <h3>💡 Pro Tips</h3>
                 <ul>
                   <li>Start with simple phrases and build up complexity</li>
-                  <li>Don't worry about perfect grammar - focus on communication</li>
+                  <li>Do not worry about perfect grammar - focus on communication</li>
                   <li>Try to use vocabulary from your analyzed phrases</li>
                   <li>Ask questions to keep the conversation flowing</li>
                 </ul>
@@ -106,6 +106,7 @@ export default function AIConversation() {
             <div className="interactive-session">
               <ConversationPractice
                 userId={DEMO_USER_ID}
+                topic={selectedTopic!}
                 onSessionComplete={handleSessionComplete}
               />
             </div>

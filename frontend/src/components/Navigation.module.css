@@ -82,3 +82,34 @@
         gap: 0.5rem;
     }
 }
+
+.listeningDot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    margin-left: 0.5rem;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    animation: navPulse 2s infinite;
+}
+
+@keyframes navPulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        transform: scale(1.1);
+        opacity: 0.8;
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
