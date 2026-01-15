@@ -8,8 +8,11 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Theme } from '../styles/designSystem';
 
 export const SettingsScreen: React.FC = () => {
   const [notifications, setNotifications] = useState(true);
@@ -91,7 +94,8 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content}>
+      <StatusBar barStyle="light-content" />
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
           <View style={styles.settingRow}>
@@ -99,8 +103,8 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={notifications}
               onValueChange={handleNotificationToggle}
-              trackColor={{ false: '#e2e8f0', true: '#667eea' }}
-              thumbColor={notifications ? '#ffffff' : '#cbd5e0'}
+              trackColor={{ false: '#334155', true: Theme.colors.primary }}
+              thumbColor={Platform.OS === 'ios' ? '#fff' : notifications ? Theme.colors.secondary : '#94a3b8'}
             />
           </View>
           <Text style={styles.settingDescription}>
@@ -115,21 +119,21 @@ export const SettingsScreen: React.FC = () => {
             <Switch
               value={autoSync}
               onValueChange={handleAutoSyncToggle}
-              trackColor={{ false: '#e2e8f0', true: '#667eea' }}
-              thumbColor={autoSync ? '#ffffff' : '#cbd5e0'}
+              trackColor={{ false: '#334155', true: Theme.colors.primary }}
+              thumbColor={Platform.OS === 'ios' ? '#fff' : autoSync ? Theme.colors.secondary : '#94a3b8'}
             />
           </View>
           <Text style={styles.settingDescription}>
             Automatically sync your progress when connected to internet
           </Text>
 
-          <View style={styles.settingRow}>
+          <View style={[styles.settingRow, { marginTop: Theme.spacing.md }]}>
             <Text style={styles.settingLabel}>Offline Mode</Text>
             <Switch
               value={offlineMode}
               onValueChange={handleOfflineModeToggle}
-              trackColor={{ false: '#e2e8f0', true: '#667eea' }}
-              thumbColor={offlineMode ? '#ffffff' : '#cbd5e0'}
+              trackColor={{ false: '#334155', true: Theme.colors.primary }}
+              thumbColor={Platform.OS === 'ios' ? '#fff' : offlineMode ? Theme.colors.secondary : '#94a3b8'}
             />
           </View>
           <Text style={styles.settingDescription}>
@@ -145,7 +149,7 @@ export const SettingsScreen: React.FC = () => {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Build</Text>
-            <Text style={styles.infoValue}>2026.01.06</Text>
+            <Text style={styles.infoValue}>2026.01.15</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Platform</Text>
@@ -170,75 +174,78 @@ export const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Theme.colors.background,
   },
   content: {
     flex: 1,
-    padding: 20,
+  },
+  scrollContent: {
+    padding: Theme.spacing.md,
+    paddingBottom: Theme.spacing.xl,
   },
   section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.lg,
+    padding: Theme.spacing.md,
+    marginBottom: Theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: Theme.typography.sizes.lg,
     fontWeight: 'bold',
-    color: '#1a202c',
-    marginBottom: 16,
+    color: Theme.colors.textPrimary,
+    marginBottom: Theme.spacing.md,
   },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Theme.spacing.xs,
   },
   settingLabel: {
-    fontSize: 16,
-    color: '#4a5568',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textPrimary,
     fontWeight: '600',
   },
   settingDescription: {
-    fontSize: 14,
-    color: '#718096',
-    marginTop: 4,
-    lineHeight: 20,
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+    lineHeight: 18,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Theme.spacing.sm,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   infoLabel: {
-    fontSize: 16,
-    color: '#4a5568',
-    fontWeight: '600',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
+    fontWeight: '500',
   },
   infoValue: {
-    fontSize: 16,
-    color: '#718096',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.primary,
+    fontWeight: '600',
   },
   dangerButton: {
-    backgroundColor: '#e53e3e',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingVertical: Theme.spacing.md,
+    paddingHorizontal: Theme.spacing.lg,
+    borderRadius: Theme.radius.md,
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   dangerButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: Theme.colors.error,
+    fontSize: Theme.typography.sizes.md,
     fontWeight: 'bold',
   },
 });

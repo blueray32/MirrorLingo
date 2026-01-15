@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { offlineService, OfflinePhraseData } from './offline';
 
 // Types matching backend models
@@ -101,30 +102,56 @@ export interface PhraseAnalysis {
 }
 
 class MirrorLingoAPI {
-  private baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  // Android emulator uses 10.0.2.2 to access host machine's localhost
+  // iOS simulator can use 127.0.0.1 directly
+  private static getApiHost(): string {
+    if (process.env.REACT_APP_API_URL) {
+      return process.env.REACT_APP_API_URL;
+    }
+    const host = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
+    return `http://${host}:3002/api`;
+  }
+
+  public baseUrl = MirrorLingoAPI.getApiHost();
   private userId: string = '';
 
   constructor() {
-    this.initUserId();
+    console.log(`[MirrorLingoAPI] Using base URL: ${this.baseUrl}`);
   }
 
-  private async initUserId(): Promise<void> {
-    const stored = await AsyncStorage.getItem('user_id');
-    if (stored) {
-      this.userId = stored;
-    } else {
-      this.userId = `mobile-${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
-      await AsyncStorage.setItem('user_id', this.userId);
-    }
+  private userIdReady: Promise<string> | null = null;
+
+  public async getUserId(): Promise<string> {
+    if (this.userId) return this.userId;
+    if (this.userIdReady) return this.userIdReady;
+
+    this.userIdReady = (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('user_id');
+        if (stored) {
+          this.userId = stored;
+        } else {
+          this.userId = `mobile-${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
+          await AsyncStorage.setItem('user_id', this.userId);
+        }
+        return this.userId;
+      } catch (e) {
+        console.error('Failed to init user ID:', e);
+        return 'demo-user-mobile';
+      }
+    })();
+
+    return this.userIdReady;
   }
 
   async analyzePhrase(inputPhrase: string): Promise<PhraseAnalysis> {
     try {
+      const userId = await this.getUserId();
       const response: Response = await fetch(`${this.baseUrl}/phrases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': this.userId,
+          'x-user-id': userId,
         },
         body: JSON.stringify({ phrases: [inputPhrase] }),
       });
@@ -139,20 +166,38 @@ class MirrorLingoAPI {
         throw new Error('Invalid API response');
       }
 
-      // Backend returns { phrases: Phrase[], profile: IdiolectProfile }
+      // Convert backend response to mobile format
       const { phrases: returnedPhrases, profile } = data.data;
-      const phraseResult = returnedPhrases[0]; // Get first phrase
+      const phraseResult = returnedPhrases[0];
 
-      // Convert to expected format for mobile app
+      // Fetch real translation for this single phrase
+      const transResponse = await fetch(`${this.baseUrl}/translations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+        body: JSON.stringify({ phrases: [phraseResult.englishText], profile }),
+      });
+
+      let translation = {
+        literal: `Literal translation for: ${phraseResult.englishText}`,
+        natural: `Natural translation for: ${phraseResult.englishText}`,
+        explanation: 'Translation explanation',
+        styleMatch: 0.85
+      };
+
+      if (transResponse.ok) {
+        const transData = await transResponse.json();
+        if (transData.success && transData.data.translations?.[0]) {
+          translation = transData.data.translations[0].translation;
+        }
+      }
+
       const analysis: PhraseAnalysis = {
         phrase: phraseResult.englishText,
         idiolectProfile: profile,
-        translations: {
-          literal: `Literal translation for: ${phraseResult.englishText}`,
-          natural: `Natural translation for: ${phraseResult.englishText}`,
-          explanation: 'Translation explanation',
-          styleMatch: 0.85
-        },
+        translations: translation,
         learningTips: ['Practice tip 1', 'Practice tip 2']
       };
       return analysis;
@@ -166,11 +211,12 @@ class MirrorLingoAPI {
 
   async analyzePhrases(inputPhrases: string[]): Promise<PhraseAnalysis[]> {
     try {
+      const userId = await this.getUserId();
       const response: Response = await fetch(`${this.baseUrl}/phrases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': this.userId,
+          'x-user-id': userId,
         },
         body: JSON.stringify({ phrases: inputPhrases }),
       });
@@ -187,17 +233,41 @@ class MirrorLingoAPI {
 
       // Convert backend response to mobile format
       const { phrases: returnedPhrases, profile } = data.data;
-      return returnedPhrases.map((phraseItem: Phrase): PhraseAnalysis => ({
-        phrase: phraseItem.englishText,
-        idiolectProfile: profile,
-        translations: {
-          literal: `Literal translation for: ${phraseItem.englishText}`,
-          natural: `Natural translation for: ${phraseItem.englishText}`,
-          explanation: 'Translation explanation',
-          styleMatch: 0.85
+
+      // Fetch real translations for all phrases
+      const transResponse = await fetch(`${this.baseUrl}/translations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
         },
-        learningTips: ['Practice tip 1', 'Practice tip 2']
-      }));
+        body: JSON.stringify({ phrases: returnedPhrases.map(p => p.englishText), profile }),
+      });
+
+      let translationsMap = new Map();
+      if (transResponse.ok) {
+        const transData = await transResponse.json();
+        if (transData.success) {
+          transData.data.translations.forEach((t: any) => {
+            translationsMap.set(t.englishPhrase.toLowerCase().trim(), t.translation);
+          });
+        }
+      }
+
+      return returnedPhrases.map((phraseItem: Phrase): PhraseAnalysis => {
+        const trans = translationsMap.get(phraseItem.englishText.toLowerCase().trim());
+        return {
+          phrase: phraseItem.englishText,
+          idiolectProfile: profile,
+          translations: trans || {
+            literal: `Literal translation for: ${phraseItem.englishText}`,
+            natural: `Natural translation for: ${phraseItem.englishText}`,
+            explanation: 'Translation explanation',
+            styleMatch: 0.85
+          },
+          learningTips: ['Practice tip 1', 'Practice tip 2']
+        };
+      });
     } catch (error) {
       console.error('API Error:', error);
       // Return mock data for demo
@@ -207,9 +277,10 @@ class MirrorLingoAPI {
 
   async getUserPhrases(): Promise<PhraseAnalysis[]> {
     try {
+      const userId = await this.getUserId();
       const response = await fetch(`${this.baseUrl}/phrases`, {
         headers: {
-          'x-user-id': this.userId,
+          'x-user-id': userId,
         },
       });
 
@@ -218,7 +289,7 @@ class MirrorLingoAPI {
       }
 
       const data = await response.json();
-      return data.phrases;
+      return data.data?.phrases || [];
     } catch (error) {
       console.error('API Error:', error);
       // Return cached data or empty array
@@ -229,16 +300,17 @@ class MirrorLingoAPI {
   // Sync methods
   async syncOfflineData(): Promise<void> {
     try {
+      const userId = await this.getUserId();
       const { phrases, progress } = await offlineService.getUnsyncedData();
 
       // Sync phrases
       for (const phrase of phrases) {
-        await this.syncPhrase(phrase);
+        await this.syncPhrase(phrase, userId);
       }
 
       // Sync progress
       for (const progressItem of progress) {
-        await this.syncProgress(progressItem);
+        await this.syncProgress(progressItem, userId);
       }
 
       console.log('Offline data synced successfully');
@@ -247,13 +319,13 @@ class MirrorLingoAPI {
     }
   }
 
-  private async syncPhrase(phraseData: OfflinePhraseData): Promise<void> {
+  private async syncPhrase(phraseData: OfflinePhraseData, userId: string): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/phrases`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': this.userId,
+          'x-user-id': userId,
         },
         body: JSON.stringify({
           phrases: [phraseData.phrase],
@@ -270,13 +342,39 @@ class MirrorLingoAPI {
     }
   }
 
-  private async syncProgress(progressItem: any): Promise<void> {
+  async segmentTranscript(transcript: string): Promise<string[]> {
+    try {
+      const userId = await this.getUserId();
+      const response = await fetch(`${this.baseUrl}/transcript/segment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+        body: JSON.stringify({ transcript }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data.segments)) {
+          return data.data.segments;
+        }
+      }
+    } catch (error) {
+      console.error('Segmentation error:', error);
+    }
+
+    // Fallback: simple client-side split
+    return transcript.split(/[.!?]+|\s{2,}/).map(s => s.trim()).filter(s => s.length > 5);
+  }
+
+  private async syncProgress(progressItem: any, userId: string): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': this.userId,
+          'x-user-id': userId,
         },
         body: JSON.stringify(progressItem),
       });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { VoiceRecorder } from '../components/VoiceRecorder';
+import { Theme } from '../styles/designSystem';
+import { StatusBar } from 'react-native';
 
 type RecordScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Record'>;
 
@@ -25,7 +27,7 @@ export const RecordScreen: React.FC<Props> = ({ navigation }) => {
     timestamp: Date;
   }>>([]);
 
-  const handleRecordingComplete = async (audioPath: string, transcript: string) => {
+  const handleRecordingComplete = useCallback(async (audioPath: string, transcript: string) => {
     const newRecording = {
       id: Date.now().toString(),
       audioPath,
@@ -55,17 +57,18 @@ export const RecordScreen: React.FC<Props> = ({ navigation }) => {
         },
       ]
     );
-  };
+  }, [navigation, recordings]);
 
-  const handleRecordingError = (error: string) => {
+  const handleRecordingError = useCallback((error: string) => {
     Alert.alert('Recording Error', error);
-  };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.instructions}>
-          Record yourself speaking naturally about your daily activities. 
+          Record yourself speaking naturally about your daily activities.
           Say phrases you actually use in conversations.
         </Text>
 
@@ -79,7 +82,7 @@ export const RecordScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.recordingsTitle}>
               Recorded Phrases ({recordings.length})
             </Text>
-            
+
             {recordings.map((recording) => (
               <View key={recording.id} style={styles.recordingItem}>
                 <Text style={styles.transcript}>"{recording.transcript}"</Text>
@@ -107,63 +110,73 @@ export const RecordScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Theme.colors.background,
   },
   content: {
-    padding: 20,
+    padding: Theme.spacing.md,
   },
   instructions: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 30,
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 8,
+    marginBottom: Theme.spacing.lg,
+    backgroundColor: Theme.colors.card,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   recordingsSection: {
-    marginTop: 30,
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 8,
+    marginTop: Theme.spacing.xl,
+    backgroundColor: Theme.colors.card,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   recordingsTitle: {
-    fontSize: 18,
+    fontSize: Theme.typography.sizes.lg,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    color: Theme.colors.textPrimary,
+    marginBottom: Theme.spacing.md,
   },
   recordingItem: {
-    backgroundColor: '#f9f9f9',
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.sm,
+    marginBottom: Theme.spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: Theme.colors.primary,
   },
   transcript: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 5,
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textPrimary,
+    marginBottom: 4,
+    fontStyle: 'italic',
   },
   timestamp: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 10,
+    color: Theme.colors.textMuted,
+    textTransform: 'uppercase',
   },
   tips: {
-    marginTop: 30,
-    backgroundColor: '#e8f5e8',
-    padding: 15,
-    borderRadius: 8,
+    marginTop: Theme.spacing.xl,
+    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.1)',
   },
   tipsTitle: {
-    fontSize: 16,
+    fontSize: Theme.typography.sizes.md,
     fontWeight: 'bold',
-    color: '#2e7d32',
-    marginBottom: 10,
+    color: Theme.colors.accent,
+    marginBottom: Theme.spacing.sm,
   },
   tip: {
-    fontSize: 14,
-    color: '#2e7d32',
-    marginBottom: 5,
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textSecondary,
+    marginBottom: 4,
   },
 });

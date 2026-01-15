@@ -67,7 +67,7 @@ describe('Mobile App Code Review Fixes', () => {
       await offlineService.markProgressSynced(targetDate);
 
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        'spaced_repetition_progress',
+        'offline_progress',
         expect.stringContaining('"synced":true')
       );
     });

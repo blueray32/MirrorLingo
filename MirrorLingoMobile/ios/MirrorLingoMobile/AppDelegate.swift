@@ -13,13 +13,7 @@ class AppDelegate: RCTAppDelegate {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  override func sourceURL(for bridge: RCTBridge) -> URL? {
-#if DEBUG
-    // For DEBUG builds, connect to Metro bundler for live reload
-    // Note: The bundler must be running at localhost:8081
-    return URL(string: "http://localhost:8081/index.bundle?platform=ios")
-#else
-    return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
-#endif
+  override func sourceURL(for bridge: RCTBridge!) -> URL! {
+    return URL(string: "http://localhost:8081/index.bundle?platform=ios&dev=true&minify=false")
   }
 }

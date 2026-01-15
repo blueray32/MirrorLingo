@@ -104,17 +104,37 @@ app.post('/api/phrases', async (req, res) => {
 
     if (!userId || !inputPhrases) return res.status(400).json({ success: false, error: 'Missing userId or phrases' });
 
-    const cleanPhrases = inputPhrases.filter(p => p.trim().length > 0);
-    const analyzedPhrases = cleanPhrases.map((text, index) => analyzePhrase(text, index, userId));
-    const profile = generateProfile(analyzedPhrases, userId);
+    const existingData = userStorage.get(userId) || { phrases: [], profile: null };
+    const cleanPhrases = inputPhrases.filter(p => {
+        const text = p.trim();
+        if (text.length === 0) return false;
+        // Avoid duplicate phrases for the same user
+        return !existingData.phrases.some(ep => ep.englishText.toLowerCase().trim() === text.toLowerCase());
+    });
 
-    userStorage.set(userId, { phrases: analyzedPhrases, profile });
-    res.json({ success: true, data: { phrases: analyzedPhrases, profile } });
+    if (cleanPhrases.length > 0) {
+        const newAnalyzed = cleanPhrases.map((text, index) => analyzePhrase(text, existingData.phrases.length + index, userId));
+        existingData.phrases = [...existingData.phrases, ...newAnalyzed];
+        existingData.profile = generateProfile(existingData.phrases, userId);
+        userStorage.set(userId, existingData);
+        console.log(`[phrases] Added ${cleanPhrases.length} new phrases for user ${userId}. Total: ${existingData.phrases.length}`);
+    }
+
+    res.json({ success: true, data: { phrases: existingData.phrases, profile: existingData.profile } });
 });
 
 // 2. AI Conversation
 app.post('/api/conversation', async (req, res) => {
-    const { message, topic, messageHistory } = req.body;
+    let { message, topic, messageHistory, context } = req.body;
+
+    // Handle mobile format where history is inside context
+    if (context && !messageHistory) {
+        messageHistory = context.previousMessages;
+        topic = context.topic;
+    }
+
+    // Ensure messageHistory is an array
+    if (!messageHistory) messageHistory = [];
 
     if (OLLAMA_API_URL) {
         try {
@@ -136,7 +156,10 @@ app.post('/api/conversation', async (req, res) => {
                 success: true,
                 data: { response: resp.trim(), correction: corr ? { original: "...", corrected: corr.trim(), explanation: "Grammar" } : undefined }
             });
-        } catch (e) { console.warn('Ollama failed, fallback'); }
+        } catch (e) {
+            console.error('Ollama Error:', e.message);
+            console.warn('Ollama failed, fallback');
+        }
     }
 
     // Mock logic
@@ -177,6 +200,11 @@ const backendTranslationCache = new Map();
 
 app.post('/api/translations', async (req, res) => {
     const { phrases, profile } = req.body;
+    const userId = req.headers['x-user-id'];
+
+    if (!phrases || !Array.isArray(phrases)) {
+        return res.status(400).json({ success: false, error: 'Phrases array required' });
+    }
 
     const results = await Promise.all(phrases.map(async p => {
         const cacheKey = p.toLowerCase().trim();
@@ -230,11 +258,138 @@ Do not include quotes or explanations.`;
             throw new Error('Ollama unavailable');
         } catch (e) {
             console.warn(`[translations] Ollama failed for "${p}":`, e.message);
-            return { englishPhrase: p, translation: { literal: p, natural: p } };
+            return { englishPhrase: p, translation: { literal: p, natural: p, explanation: "Fallback translation" } };
         }
     }));
 
+    // Persist translations if userId is provided and user exists
+    if (userId && userStorage.has(userId)) {
+        const userData = userStorage.get(userId);
+        let updatedCount = 0;
+
+        results.forEach(res => {
+            const phrase = userData.phrases.find(ph => ph.englishText.toLowerCase().trim() === res.englishPhrase.toLowerCase().trim());
+            if (phrase) {
+                phrase.translations = res.translation;
+                updatedCount++;
+            }
+        });
+
+        if (updatedCount > 0) {
+            userStorage.set(userId, userData);
+            console.log(`[translations] Persisted ${updatedCount} translations for user ${userId}`);
+        }
+    }
+
     res.json({ success: true, data: { translations: results } });
+});
+
+// 5. Intelligent Transcript Segmentation (using Ollama)
+app.post('/api/transcript/segment', async (req, res) => {
+    const { transcript } = req.body;
+
+    if (!transcript || transcript.trim().length === 0) {
+        return res.json({ success: true, data: { segments: [] } });
+    }
+
+    try {
+        if (OLLAMA_API_URL) {
+            const systemPrompt = `You are a speech processing assistant. 
+Given a raw, unpunctuated speech transcript, split it into a list of logical, complete sentences.
+Return ONLY a JSON array of strings. No explanations, no markdown blocks. 
+Example: ["Hello how are you", "I am doing well"]`;
+
+            const response = await fetch(OLLAMA_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: `Segment this transcript: "${transcript}"` }
+                    ],
+                    stream: false,
+                    options: { temperature: 0.1 }
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                let fullText = data.message?.content?.trim() || "[]";
+
+                // Try to extract JSON array if Ollama included extra text
+                const match = fullText.match(/\[.*\]/s);
+                if (match) fullText = match[0];
+
+                try {
+                    const segments = JSON.parse(fullText);
+                    if (Array.isArray(segments)) {
+                        console.log(`[segment] Successfully split transcript into ${segments.length} segments`);
+                        return res.json({ success: true, data: { segments } });
+                    }
+                } catch (pe) {
+                    console.error('[segment] JSON parse error:', pe.message, fullText);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[segment] Ollama Error:', e.message);
+    }
+
+    // Fallback: simple split by punctuation or long spaces
+    const segments = transcript.split(/[.!?]+|\s{2,}/).map(s => s.trim()).filter(s => s.length > 5);
+    res.json({ success: true, data: { segments } });
+});
+
+// 5. Single Word Dictionary Lookup (Spanish to English)
+app.post('/api/dictionary/lookup', async (req, res) => {
+    const { word } = req.body;
+    if (!word) return res.status(400).json({ success: false, error: 'Word is required' });
+
+    const cacheKey = `dict_${word.toLowerCase().trim()}`;
+    if (backendTranslationCache.has(cacheKey)) {
+        return res.json({ success: true, data: { translation: backendTranslationCache.get(cacheKey) } });
+    }
+
+    try {
+        if (OLLAMA_API_URL) {
+            const systemPrompt = `You are a Spanish-English dictionary. 
+Translate the given Spanish word to English. 
+Reply with ONLY the English translation, no other text.
+If there are multiple meanings, give the most common one.
+Use lowercase.`;
+
+            const response = await fetch(OLLAMA_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: MODEL_NAME,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: word }
+                    ],
+                    stream: false,
+                    options: { temperature: 0.1, num_predict: 20 }
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const trans = data.message?.content?.trim()
+                    .replace(/^["']|["']$/g, '')
+                    .toLowerCase()
+                    .trim();
+
+                console.log(`[dictionary] Ollama looked up: "${word}" -> "${trans}"`);
+                backendTranslationCache.set(cacheKey, trans);
+                return res.json({ success: true, data: { translation: trans } });
+            }
+        }
+        throw new Error('Ollama unavailable');
+    } catch (e) {
+        console.warn(`[dictionary] Ollama lookup failed for "${word}":`, e.message);
+        res.status(500).json({ success: false, error: 'Translation failed' });
+    }
 });
 
 // 5. Pronunciation Analysis (Mock)

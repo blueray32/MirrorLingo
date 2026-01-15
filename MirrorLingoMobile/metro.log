@@ -1,6 +1,6 @@
 
 > MirrorLingoMobile@1.0.0 start
-> react-native start --reset-cache
+> react-native start
 
 info Welcome to React Native v0.73
 info Starting dev server on port 8081...
@@ -19,31 +19,8 @@ info Starting dev server on port 8081...
                         ▒▒▓▓▓▓▒▒
 
 
-warning: the transform cache was reset.
                 Welcome to Metro v0.80.12
               Fast - Scalable - Integrated
 
-
-warning: Watchman `watch-project` returned a warning: Recrawled this watch 1 time, most recently because:
-MustScanSubDirs UserDroppedTo resolve, please review the information on
-https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
-To clear this warning, run:
-`watchman watch-del '/Users/ciarancox/dynamous-kiro-hackathon' ; watchman watch-project '/Users/ciarancox/dynamous-kiro-hackathon'`
-
-warning: Watchman `query` returned a warning: Recrawled this watch 1 time, most recently because:
-MustScanSubDirs UserDroppedTo resolve, please review the information on
-https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
-To clear this warning, run:
-`watchman watch-del '/Users/ciarancox/dynamous-kiro-hackathon' ; watchman watch-project '/Users/ciarancox/dynamous-kiro-hackathon'`
-
-info React Native v0.83.0 is now available (your project is running on v0.73.0).
-info Changelog: https://github.com/facebook/react-native/releases/tag/v0.83.0
-info Diff: https://react-native-community.github.io/upgrade-helper/?from=0.83.0
-info For more info, check out "https://reactnative.dev/docs/upgrading?os=macos".
-Recrawled this watch 1 time, most recently because:
-MustScanSubDirs UserDroppedTo resolve, please review the information on
-https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
-To clear this warning, run:
-`watchman watch-del '/Users/ciarancox/dynamous-kiro-hackathon' ; watchman watch-project '/Users/ciarancox/dynamous-kiro-hackathon'`
 
 info Dev server ready

@@ -7,12 +7,22 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { usePhrasesApi } from '../hooks/usePhrasesApi';
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+import { Theme } from '../styles/designSystem';
+import { backgroundCaptureService, CaptureState } from '../services/backgroundCapture';
+import { Alert } from 'react-native';
+
+type HomeScreenNavigationProp = any;
 
 interface Props {
   navigation: HomeScreenNavigationProp;
@@ -20,26 +30,103 @@ interface Props {
 
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { phrases, profile, isLoading, loadPhrases } = usePhrasesApi();
-  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [activeMode, setActiveMode] = useState<'voice' | 'text' | 'background'>('voice');
+  const [manualPhrases, setManualPhrases] = useState<string[]>([]);
+  const [currentInput, setCurrentInput] = useState('');
+  const [isBackgroundMonitoring, setIsBackgroundMonitoring] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [capturedPhrases, setCapturedPhrases] = useState<Array<{ id: string; text: string; timestamp: Date; synced: boolean }>>([]);
+  const [captureState, setCaptureState] = useState<CaptureState>('idle');
+  const [isSyncing, setIsSyncing] = useState(false);
 
+  // Initialize persistence
   useEffect(() => {
-    loadPhrases().then((success) => {
-      if (success && phrases.length > 0) {
-        setShowAnalysis(true);
+    const loadSettings = async () => {
+      const stored = await AsyncStorage.getItem('background_monitoring');
+      if (stored === 'true') {
+        setIsBackgroundMonitoring(true);
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
-    });
+    };
+    loadSettings();
   }, []);
 
-  const handleStartOver = () => {
-    setShowAnalysis(false);
+  // Background capture service integration
+  useEffect(() => {
+    // Subscribe to phrase captures
+    const unsubPhrase = backgroundCaptureService.onPhraseCaptured((phrase) => {
+      setCapturedPhrases(prev => [...prev, phrase]);
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    });
+
+    // Subscribe to state changes
+    const unsubState = backgroundCaptureService.onStateChange((state) => {
+      setCaptureState(state);
+    });
+
+    return () => {
+      unsubPhrase();
+      unsubState();
+    };
+  }, []);
+
+  const toggleBackgroundMonitoring = async (value: boolean) => {
+    try {
+      if (value) {
+        await backgroundCaptureService.startCapture();
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else {
+        await backgroundCaptureService.stopCapture();
+      }
+      setIsBackgroundMonitoring(value);
+      await AsyncStorage.setItem('background_monitoring', value.toString());
+    } catch (error) {
+      console.error('Failed to toggle background monitoring:', error);
+      Alert.alert('Microphone Error', 'Could not access the microphone. Please check your permissions.');
+    }
   };
+
+  const handleSyncNow = async () => {
+    if (capturedPhrases.filter(p => !p.synced).length === 0) {
+      Alert.alert('Nothing to Sync', 'Speak some phrases first, then sync them to your Tutor.');
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const count = await backgroundCaptureService.syncPhrases();
+      // Update local state to mark as synced
+      setCapturedPhrases(backgroundCaptureService.getCapturedPhrases());
+      Alert.alert('Synced!', `Successfully analyzed ${count} new phrase${count !== 1 ? 's' : ''}. Check your Tutor!`);
+    } catch (error) {
+      Alert.alert('Sync Failed', 'Could not send phrases. Please try again.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const addPhrase = () => {
+    if (currentInput.trim()) {
+      setManualPhrases([...manualPhrases, currentInput.trim()]);
+      setCurrentInput('');
+    }
+  };
+
+  const removePhrase = (index: number) => {
+    const newList = [...manualPhrases];
+    newList.splice(index, 1);
+    setManualPhrases(newList);
+  };
+
+  useEffect(() => {
+    loadPhrases();
+  }, []);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#667eea" />
-          <Text style={styles.loadingText}>Loading your phrases...</Text>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading your profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -47,124 +134,180 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.title}>MirrorLingo</Text>
-          <Text style={styles.subtitle}>Your Personal Spanish Learning Coach</Text>
-          
-          {showAnalysis && (
-            <TouchableOpacity
-              style={styles.startOverButton}
-              onPress={handleStartOver}
-            >
-              <Text style={styles.startOverButtonText}>Analyze New Phrases</Text>
-            </TouchableOpacity>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.heroSection}>
+          <Text style={styles.heroTitle}>Acoustic Input</Text>
+          <Text style={styles.heroSubtitle}>Capture exactly how you speak</Text>
+          {isBackgroundMonitoring && (
+            <View style={styles.monitoringBadge}>
+              <View style={styles.monitoringDot} />
+              <Text style={styles.monitoringText}>Monitoring</Text>
+            </View>
           )}
         </View>
 
-        {!showAnalysis ? (
-          <View style={styles.content}>
-            <Text style={styles.description}>
-              Learn Spanish that matches how you actually speak. Record your daily phrases 
-              and get personalized Spanish lessons with AI-powered analysis.
-            </Text>
+        <View style={styles.modeTabs}>
+          {(['voice', 'text', 'background'] as const).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.modeTab,
+                activeMode === mode && styles.activeModeTab
+              ]}
+              onPress={() => setActiveMode(mode)}
+            >
+              <Text style={[
+                styles.modeTabText,
+                activeMode === mode && styles.activeModeTabText
+              ]}>
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-            <View style={styles.inputModeSection}>
-              <Text style={styles.sectionTitle}>Choose Your Input Method:</Text>
-              
+        <View style={styles.mainCard}>
+          {activeMode === 'voice' && (
+            <View style={styles.modeContent}>
+              <Text style={styles.modeEmoji}>🎤</Text>
+              <Text style={styles.modeTitle}>Natural Voice Acquisition</Text>
+              <Text style={styles.modeDescription}>
+                Speak naturally. Our AI will analyze your tone, syntax, and patterns to create your MirrorLingo profile.
+              </Text>
               <TouchableOpacity
-                style={[styles.button, styles.primaryButton]}
+                style={styles.primaryAction}
                 onPress={() => navigation.navigate('Record')}
               >
-                <Text style={styles.buttonEmoji}>🎤</Text>
-                <Text style={styles.primaryButtonText}>Record Voice</Text>
-                <Text style={styles.buttonDescription}>Speak naturally and let AI analyze your patterns</Text>
+                <Text style={styles.primaryActionText}>Start Recording</Text>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {activeMode === 'text' && (
+            <View style={styles.modeContent}>
+              <Text style={styles.modeEmoji}>⌨️</Text>
+              <Text style={styles.modeTitle}>Manual Phrase Entry</Text>
+              <Text style={styles.modeDescription}>
+                Type phrases you use often in English. We'll translate them into perfect Spanish that matches your style.
+              </Text>
+
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.manualInput}
+                  placeholder="Enter a phrase..."
+                  placeholderTextColor={Theme.colors.textMuted}
+                  value={currentInput}
+                  onChangeText={setCurrentInput}
+                  onSubmitEditing={addPhrase}
+                />
+                <TouchableOpacity style={styles.addButton} onPress={addPhrase}>
+                  <Text style={styles.addButtonText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+
+              {manualPhrases.length > 0 && (
+                <View style={styles.phraseList}>
+                  {manualPhrases.map((phrase, index) => (
+                    <View key={index} style={styles.phraseItem}>
+                      <Text style={styles.phraseItemText} numberOfLines={1}>{phrase}</Text>
+                      <TouchableOpacity onPress={() => removePhrase(index)}>
+                        <Text style={styles.removeText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <TouchableOpacity
-                style={[styles.button, styles.secondaryButton]}
-                onPress={() => navigation.navigate('Conversation', { profile: undefined })}
+                style={[
+                  styles.primaryAction,
+                  manualPhrases.length === 0 && styles.primaryActionDisabled
+                ]}
+                onPress={() => navigation.navigate('Practice', { phrases: manualPhrases })}
+                disabled={manualPhrases.length === 0}
               >
-                <Text style={styles.buttonEmoji}>🗣️</Text>
-                <Text style={styles.secondaryButtonText}>Try AI Conversation</Text>
-                <Text style={styles.buttonDescription}>Practice Spanish with personalized AI tutor</Text>
+                <Text style={styles.primaryActionText}>
+                  {manualPhrases.length > 0 ? `Analyze ${manualPhrases.length} Phrases` : 'Enter Phrases'}
+                </Text>
               </TouchableOpacity>
             </View>
+          )}
 
-            <View style={styles.features}>
-              <Text style={styles.featureTitle}>Key Features:</Text>
-              <Text style={styles.feature}>🎤 Voice & Text Analysis</Text>
-              <Text style={styles.feature}>🧠 AI-Powered Personalization</Text>
-              <Text style={styles.feature}>🇪🇸 Dual Spanish Translations</Text>
-              <Text style={styles.feature}>🗣️ AI Conversation Practice</Text>
-              <Text style={styles.feature}>🎓 Training Mixer Exercises</Text>
-              <Text style={styles.feature}>📚 Spaced Repetition Learning</Text>
-              <Text style={styles.feature}>📊 Progress Tracking</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.analysisSection}>
-            <View style={styles.analysisHeader}>
-              <Text style={styles.analysisTitle}>Your Analysis Results</Text>
-              <Text style={styles.analysisSubtitle}>
-                {phrases.length} phrases analyzed • {profile?.tone || 'Casual'} tone detected
+          {activeMode === 'background' && (
+            <View style={styles.modeContent}>
+              <Text style={styles.modeEmoji}>📻</Text>
+              <Text style={styles.modeTitle}>Background Sync</Text>
+              <Text style={styles.modeDescription}>
+                Enable background mode to capture natural speech throughout the day efficiently.
+              </Text>
+
+              <View style={styles.monitoringCard}>
+                <View style={styles.toggleRow}>
+                  <View>
+                    <Text style={styles.toggleLabel}>Background Monitoring</Text>
+                    <Text style={styles.toggleStatus}>
+                      {captureState === 'listening' ? '🔴 Listening...' : captureState === 'processing' ? '⏳ Processing...' : 'Inactive'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isBackgroundMonitoring}
+                    onValueChange={toggleBackgroundMonitoring}
+                    trackColor={{ false: '#334155', true: Theme.colors.primary }}
+                    thumbColor={Platform.OS === 'ios' ? '#fff' : isBackgroundMonitoring ? Theme.colors.secondary : '#94a3b8'}
+                  />
+                </View>
+
+                {isBackgroundMonitoring && (
+                  <View style={styles.syncStatusRow}>
+                    <Text style={styles.syncStatusLabel}>Last Capture:</Text>
+                    <Text style={styles.syncStatusValue}>{lastSyncTime || 'Waiting...'}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Captured Phrases List */}
+              {capturedPhrases.length > 0 && (
+                <View style={styles.capturedSection}>
+                  <Text style={styles.capturedTitle}>
+                    Captured Phrases ({capturedPhrases.filter(p => !p.synced).length} unsynced)
+                  </Text>
+                  {capturedPhrases.slice(-5).reverse().map((phrase) => (
+                    <View key={phrase.id} style={[styles.capturedItem, phrase.synced && styles.capturedItemSynced]}>
+                      <Text style={styles.capturedText} numberOfLines={2}>"{phrase.text}"</Text>
+                      <Text style={styles.capturedMeta}>
+                        {phrase.synced ? '✅ Synced' : '⏳ Pending'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Sync Button */}
+              <TouchableOpacity
+                style={[styles.primaryAction, isSyncing && styles.primaryActionDisabled]}
+                onPress={handleSyncNow}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color={Theme.colors.textPrimary} />
+                ) : (
+                  <Text style={styles.primaryActionText}>Sync Now</Text>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.disclaimer}>
+                * Speak naturally. Phrases are captured when you pause.
               </Text>
             </View>
+          )}
+        </View>
 
-            <View style={styles.nextStepsGrid}>
-              <TouchableOpacity
-                style={styles.stepCard}
-                onPress={() => navigation.navigate('Translations', { phrases, profile })}
-              >
-                <Text style={styles.stepEmoji}>🎯</Text>
-                <Text style={styles.stepTitle}>Spanish Translations</Text>
-                <Text style={styles.stepDescription}>
-                  Get personalized Spanish versions with literal and natural translations
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.stepCard}
-                onPress={() => navigation.navigate('Conversation', { profile })}
-              >
-                <Text style={styles.stepEmoji}>🗣️</Text>
-                <Text style={styles.stepTitle}>AI Conversation</Text>
-                <Text style={styles.stepDescription}>
-                  Practice real Spanish conversations with an AI tutor that adapts to your style
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.stepCard}
-                onPress={() => navigation.navigate('Practice', { phrases })}
-              >
-                <Text style={styles.stepEmoji}>🔄</Text>
-                <Text style={styles.stepTitle}>Spaced Practice</Text>
-                <Text style={styles.stepDescription}>
-                  Review your phrases with adaptive scheduling to build long-term memory
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.stepCard}
-                onPress={() => navigation.navigate('TrainingMixer', { phrases, profile })}
-              >
-                <Text style={styles.stepEmoji}>🎓</Text>
-                <Text style={styles.stepTitle}>Training Mixer</Text>
-                <Text style={styles.stepDescription}>
-                  Practice with mixed exercises generated from your own phrases
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.progressButton}
-              onPress={() => navigation.navigate('Progress')}
-            >
-              <Text style={styles.progressButtonText}>📊 View Detailed Progress</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.proTipBox}>
+          <Text style={styles.proTipTitle}>💡 Pro Tip</Text>
+          <Text style={styles.proTipText}>
+            The more you record, the better your Spanish Tutor becomes. Try to record at least 5 phrases today!
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -173,10 +316,13 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Theme.colors.background,
   },
   scrollContainer: {
     flex: 1,
+  },
+  scrollContent: {
+    padding: Theme.spacing.md,
   },
   loadingContainer: {
     flex: 1,
@@ -184,190 +330,274 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#4a5568',
+    marginTop: Theme.spacing.md,
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
   },
-  header: {
-    backgroundColor: 'white',
-    padding: 20,
+  heroSection: {
+    marginTop: Theme.spacing.lg,
+    marginBottom: Theme.spacing.xl,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2d3748',
-    marginBottom: 8,
+  monitoringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#718096',
-    marginBottom: 16,
+  monitoringDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+    marginRight: 6,
   },
-  startOverButton: {
-    backgroundColor: '#4299e1',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+  monitoringText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
-  startOverButtonText: {
-    color: 'white',
-    fontWeight: '600',
+  heroTitle: {
+    fontSize: Theme.typography.sizes.xxl,
+    fontWeight: Theme.typography.weights.bold,
+    color: Theme.colors.textPrimary,
+    textAlign: 'center',
   },
-  content: {
-    padding: 20,
+  heroSubtitle: {
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
   },
-  description: {
-    fontSize: 16,
-    color: '#4a5568',
+  modeTabs: {
+    flexDirection: 'row',
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.md,
+    padding: 4,
+    marginBottom: Theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: Theme.spacing.sm,
+    alignItems: 'center',
+    borderRadius: Theme.radius.sm,
+  },
+  activeModeTab: {
+    backgroundColor: Theme.colors.primary,
+  },
+  modeTabText: {
+    color: Theme.colors.textSecondary,
+    fontWeight: Theme.typography.weights.medium,
+    fontSize: Theme.typography.sizes.sm,
+  },
+  activeModeTabText: {
+    color: Theme.colors.textPrimary,
+  },
+  mainCard: {
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.lg,
+    padding: Theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    minHeight: 300,
+  },
+  modeContent: {
+    alignItems: 'center',
+  },
+  modeEmoji: {
+    fontSize: 48,
+    marginBottom: Theme.spacing.md,
+  },
+  modeTitle: {
+    fontSize: Theme.typography.sizes.lg,
+    fontWeight: Theme.typography.weights.bold,
+    color: Theme.colors.textPrimary,
+    marginBottom: Theme.spacing.sm,
+    textAlign: 'center',
+  },
+  modeDescription: {
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: Theme.spacing.xl,
   },
-  inputModeSection: {
-    marginBottom: 32,
+  primaryAction: {
+    backgroundColor: Theme.colors.primary,
+    paddingVertical: Theme.spacing.md,
+    paddingHorizontal: Theme.spacing.xl,
+    borderRadius: Theme.radius.md,
+    width: '100%',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 20,
+  primaryActionText: {
+    color: Theme.colors.textPrimary,
+    fontSize: Theme.typography.sizes.md,
+    fontWeight: Theme.typography.weights.bold,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  toggleLabel: {
+    color: Theme.colors.textPrimary,
+    fontSize: Theme.typography.sizes.md,
     fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 16,
+  },
+  toggleStatus: {
+    color: Theme.colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  monitoringCard: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: Theme.radius.md,
+    padding: Theme.spacing.md,
+    marginBottom: Theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  syncStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Theme.spacing.md,
+    paddingTop: Theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  syncStatusLabel: {
+    color: Theme.colors.textSecondary,
+    fontSize: 13,
+  },
+  syncStatusValue: {
+    color: Theme.colors.primary,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  disclaimer: {
+    color: Theme.colors.textMuted,
+    fontSize: Theme.typography.sizes.xs,
+    fontStyle: 'italic',
+    marginTop: Theme.spacing.md,
     textAlign: 'center',
   },
-  button: {
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  proTipBox: {
+    marginTop: Theme.spacing.xl,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: Theme.radius.md,
+    padding: Theme.spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: Theme.colors.primary,
   },
-  primaryButton: {
-    backgroundColor: '#667eea',
-  },
-  secondaryButton: {
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: '#667eea',
-  },
-  buttonEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  primaryButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+  proTipTitle: {
+    color: Theme.colors.primary,
+    fontWeight: Theme.typography.weights.bold,
     marginBottom: 4,
   },
-  secondaryButtonText: {
-    color: '#667eea',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  buttonDescription: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  features: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  featureTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2d3748',
-    marginBottom: 16,
-  },
-  feature: {
-    fontSize: 16,
-    color: '#4a5568',
-    marginBottom: 8,
-  },
-  analysisSection: {
-    padding: 20,
-  },
-  analysisHeader: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  analysisTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2d3748',
-    marginBottom: 8,
-  },
-  analysisSubtitle: {
-    fontSize: 16,
-    color: '#718096',
-  },
-  nextStepsGrid: {
-    marginBottom: 24,
-  },
-  stepCard: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  stepEmoji: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
-  stepTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 8,
-  },
-  stepDescription: {
-    fontSize: 14,
-    color: '#718096',
+  proTipText: {
+    color: Theme.colors.textSecondary,
+    fontSize: Theme.typography.sizes.sm,
     lineHeight: 20,
   },
-  progressButton: {
-    backgroundColor: '#48bb78',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  inputRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 8,
+    marginBottom: Theme.spacing.md,
   },
-  progressButtonText: {
-    color: 'white',
+  manualInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    borderRadius: Theme.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Theme.colors.textPrimary,
+    fontSize: 14,
+  },
+  addButton: {
+    backgroundColor: Theme.colors.secondary,
+    paddingHorizontal: Theme.spacing.md,
+    justifyContent: 'center',
+    borderRadius: Theme.radius.sm,
+  },
+  addButtonText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: 'bold',
+  },
+  phraseList: {
+    width: '100%',
+    maxHeight: 150,
+    marginBottom: Theme.spacing.lg,
+  },
+  phraseItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  phraseItemText: {
+    color: Theme.colors.textPrimary,
+    fontSize: 13,
+    flex: 1,
+    marginRight: 8,
+  },
+  removeText: {
+    color: Theme.colors.textMuted,
     fontSize: 16,
-    fontWeight: '600',
+    paddingHorizontal: 4,
+  },
+  primaryActionDisabled: {
+    opacity: 0.5,
+  },
+  capturedSection: {
+    marginTop: Theme.spacing.md,
+    width: '100%',
+  },
+  capturedTitle: {
+    color: Theme.colors.textSecondary,
+    fontSize: Theme.typography.sizes.xs,
+    fontWeight: 'bold',
+    marginBottom: Theme.spacing.sm,
+    textTransform: 'uppercase',
+  },
+  capturedItem: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    padding: Theme.spacing.sm,
+    borderRadius: Theme.radius.sm,
+    marginBottom: Theme.spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: Theme.colors.primary,
+  },
+  capturedItemSynced: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderLeftColor: Theme.colors.accent,
+  },
+  capturedText: {
+    color: Theme.colors.textPrimary,
+    fontSize: Theme.typography.sizes.sm,
+    fontStyle: 'italic',
+    marginBottom: 2,
+  },
+  capturedMeta: {
+    color: Theme.colors.textMuted,
+    fontSize: 10,
   },
 });

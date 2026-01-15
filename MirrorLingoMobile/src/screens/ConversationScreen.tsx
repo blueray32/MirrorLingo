@@ -10,20 +10,27 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
+  Dimensions,
+  TouchableWithoutFeedback,
+  StatusBar,
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseSpanishText } from '../components/TappableWord';
+import { Theme } from '../styles/designSystem';
+import { mirrorLingoAPI } from '../services/api';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:3002';
 
 type ConversationScreenRouteProp = RouteProp<RootStackParamList, 'Conversation'>;
 type ConversationScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Conversation'>;
 
 interface Props {
-  route: ConversationScreenRouteProp;
-  navigation: ConversationScreenNavigationProp;
+  route: any;
+  navigation: any;
 }
 
 interface Message {
@@ -53,10 +60,11 @@ const CONVERSATION_TOPICS = [
   { id: 'shopping', name: 'Shopping', emoji: '🛍️' },
   { id: 'health', name: 'Health', emoji: '🏥' },
   { id: 'weather', name: 'Weather', emoji: '🌤️' },
+  { id: 'free_conversation', name: 'Free Speaking', emoji: '🗣️' },
 ];
 
 export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { profile } = route.params;
+  const [profile, setProfile] = useState<any>(route?.params?.profile || null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
@@ -64,6 +72,9 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
   const [userId, setUserId] = useState<string>('');
   const [currentTips, setCurrentTips] = useState<string[]>([]);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [translation, setTranslation] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Initialize user ID
@@ -77,15 +88,23 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
         await AsyncStorage.setItem('user_id', newId);
         setUserId(newId);
       }
+
+      // Load profile if missing
+      if (!profile) {
+        const cached = await mirrorLingoAPI.getCachedPhrases();
+        if (cached && cached.length > 0) {
+          setProfile(cached[0].idiolectProfile);
+        }
+      }
     };
     initUserId();
   }, []);
 
   useEffect(() => {
-    // Add welcome message
+    // Add welcome message in Spanish
     setMessages([{
       id: '1',
-      text: '¡Hola! I\'m your Spanish conversation partner. Choose a topic to start practicing!',
+      text: '¡Hola! Soy tu compañero de conversación en español. ¡Elige un tema para empezar a practicar!',
       isUser: false,
       timestamp: new Date(),
     }]);
@@ -94,15 +113,52 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
   const selectTopic = (topicId: string) => {
     setSelectedTopic(topicId);
     const topic = CONVERSATION_TOPICS.find(t => t.id === topicId);
-    
+
+    // Topic welcome messages in Spanish
+    const topicWelcomes: Record<string, string> = {
+      daily: '¡Perfecto! Vamos a hablar de la vida diaria. Me adaptaré a tu estilo. ¡Empieza con cualquier pregunta o comentario!',
+      work: '¡Excelente! Hablemos del trabajo. ¿En qué trabajas tú?',
+      travel: '¡Me encanta viajar! Cuéntame sobre tus viajes favoritos.',
+      food: '¡La comida es mi pasión! ¿Cuál es tu plato favorito?',
+      family: '¡La familia es muy importante! Cuéntame sobre tu familia.',
+      hobbies: '¡Los pasatiempos son divertidos! ¿Qué te gusta hacer en tu tiempo libre?',
+      shopping: '¡Vamos de compras! ¿Te gusta ir de compras?',
+      health: '¡La salud es importante! ¿Cómo cuidas tu salud?',
+      weather: '¡El clima! ¿Qué tiempo hace hoy donde estás?',
+      free_conversation: '¡Me encanta hablar de todo! ¿De qué te gustaría conversar hoy? Tú diriges el camino.',
+    };
+
     const welcomeMessage: Message = {
       id: Date.now().toString(),
-      text: `Great! Let's talk about ${topic?.name.toLowerCase()}. I'll adapt to your speaking style. Start with any question or comment in Spanish!`,
+      text: topicWelcomes[topicId] || `¡Muy bien! Vamos a hablar de ${topic?.name.toLowerCase()}. ¡Empieza cuando quieras!`,
       isUser: false,
       timestamp: new Date(),
     };
-    
+
     setMessages(prev => [...prev, welcomeMessage]);
+  };
+
+  const handleWordPress = async (word: string) => {
+    const cleanWord = word.toLowerCase().replace(/[¿?¡!.,;:'"()]/g, '');
+    setSelectedWord(cleanWord);
+    setTranslation(null);
+    setIsTranslating(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dictionary/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: cleanWord }),
+      });
+      const data = await response.json();
+      if (data.success && data.data.translation) {
+        setTranslation(data.data.translation);
+      }
+    } catch (error) {
+      console.error('Translation lookup failed:', error);
+    } finally {
+      setIsTranslating(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -203,24 +259,59 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
   const getTopicResponses = (topic: string): string[] => {
     const responseMap: Record<string, string[]> = {
       daily: [
-        '¿Qué tal tu día? Tell me about your morning routine.',
+        '¿Qué tal tu día? Cuéntame sobre tu rutina de la mañana.',
         'Me gusta hablar de la vida diaria. ¿Qué haces normalmente por las tardes?',
-        '¿Cómo es un día típico para ti?',
+        '¿Cómo es un día típico para ti? ¿A qué hora te levantas?',
+        '¿Qué es lo primero que haces cuando te despiertas?',
       ],
       work: [
-        '¿En qué trabajas? I\'d love to hear about your job.',
-        'El trabajo puede ser interesante. ¿Qué es lo que más te gusta de tu trabajo?',
-        '¿Cómo es tu oficina o lugar de trabajo?',
+        '¿En qué trabajas? Me gustaría saber más sobre tu profesión.',
+        'El trabajo puede ser muy interesante. ¿Qué es lo que más te gusta de tu trabajo?',
+        '¿Cómo es tu oficina o lugar de trabajo? ¿Trabajas desde casa?',
+        '¿Cuántas horas trabajas normalmente cada día?',
       ],
       travel: [
-        '¡Me encanta viajar! ¿Cuál ha sido tu viaje favorito?',
-        '¿Adónde te gustaría viajar próximamente?',
+        '¡Me encanta viajar! ¿Cuál ha sido tu viaje favorito hasta ahora?',
+        '¿Adónde te gustaría viajar próximamente? ¿Por qué?',
         'Cuéntame sobre un lugar interesante que hayas visitado.',
+        '¿Prefieres viajar solo o con amigos y familia?',
       ],
       food: [
         '¡La comida es mi pasión! ¿Cuál es tu plato favorito?',
         '¿Te gusta cocinar? ¿Qué sabes preparar?',
-        '¿Has probado comida española o latinoamericana?',
+        '¿Has probado comida española o latinoamericana? ¿Qué te pareció?',
+        '¿Cuál es tu restaurante favorito? ¿Qué tipo de comida sirven?',
+      ],
+      family: [
+        '¿Tienes una familia grande o pequeña?',
+        'Cuéntame sobre tus hermanos o hermanas.',
+        '¿Vives cerca de tu familia?',
+      ],
+      hobbies: [
+        '¿Qué te gusta hacer en tu tiempo libre?',
+        '¿Practicas algún deporte?',
+        '¿Te gusta leer? ¿Qué tipo de libros prefieres?',
+      ],
+      shopping: [
+        '¿Te gusta ir de compras? ¿Dónde prefieres comprar?',
+        '¿Compras más en línea o en tiendas físicas?',
+        '¿Cuál fue tu última compra importante?',
+      ],
+      health: [
+        '¿Cómo cuidas tu salud?',
+        '¿Haces ejercicio regularmente?',
+        '¿Qué haces para relajarte?',
+      ],
+      weather: [
+        '¿Qué tiempo hace hoy donde estás?',
+        '¿Cuál es tu estación favorita del año?',
+        '¿Prefieres el frío o el calor?',
+      ],
+      free_conversation: [
+        '¡Qué interesante! Cuéntame más sobre eso.',
+        'Me encanta aprender cosas nuevas. ¿Puedes explicarme más?',
+        '¿Y tú qué piensas sobre eso?',
+        'Es un tema fascinante. ¿Cómo empezaste a interesarte en esto?',
       ],
     };
 
@@ -239,10 +330,11 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <StatusBar barStyle="light-content" backgroundColor={Theme.colors.background} />
       {!selectedTopic ? (
         <View style={styles.topicSelection}>
           <Text style={styles.topicTitle}>Choose a conversation topic:</Text>
@@ -274,13 +366,22 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
                     message.isUser ? styles.userMessage : styles.aiMessage,
                   ]}
                 >
-                  <Text style={[
-                    styles.messageText,
-                    message.isUser ? styles.userMessageText : styles.aiMessageText,
-                  ]}>
-                    {message.text}
-                  </Text>
-                  <Text style={styles.timestamp}>
+                  {!message.isUser && (
+                    <View style={styles.aiAvatarChip}>
+                      <Text style={styles.aiAvatarText}>🤖 AI</Text>
+                    </View>
+                  )}
+                  {message.isUser ? (
+                    <Text style={[styles.messageText, styles.userMessageText]}>
+                      {message.text}
+                    </Text>
+                  ) : (
+                    <View style={styles.aiMessageContent}>
+                      {parseSpanishText(message.text, handleWordPress)}
+                      <Text style={styles.tapHint}>Tap underlined words for translation</Text>
+                    </View>
+                  )}
+                  <Text style={[styles.timestamp, message.isUser && styles.userTimestamp]}>
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
@@ -360,6 +461,28 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
           </View>
         </>
       )}
+      <Modal
+        visible={!!selectedWord}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedWord(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setSelectedWord(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.tooltip}>
+              <View style={styles.tooltipArrow} />
+              <Text style={styles.tooltipWord}>{selectedWord}</Text>
+              {isTranslating ? (
+                <Text style={styles.tooltipLoading}>Translating...</Text>
+              ) : translation ? (
+                <Text style={styles.tooltipTranslation}>{translation}</Text>
+              ) : (
+                <Text style={styles.tooltipUnknown}>Translation not found</Text>
+              )}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -367,16 +490,18 @@ export const ConversationScreen: React.FC<Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Theme.colors.background,
   },
   topicSelection: {
     flex: 1,
     padding: 20,
+    backgroundColor: Theme.colors.background,
+    justifyContent: 'center',
   },
   topicTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2d3748',
+    color: Theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -387,25 +512,24 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   topicButton: {
-    width: '48%',
-    backgroundColor: 'white',
-    padding: 20,
+    width: '30%',
+    backgroundColor: Theme.colors.card,
+    padding: 15,
     borderRadius: 12,
+    marginBottom: 15,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   topicEmoji: {
-    fontSize: 32,
+    fontSize: 24,
     marginBottom: 8,
   },
   topicName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2d3748',
+    fontSize: 12,
+    fontWeight: Theme.typography.weights.medium,
+    color: Theme.colors.textSecondary,
+    textAlign: 'center',
   },
   messagesContainer: {
     flex: 1,
@@ -413,88 +537,91 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     marginBottom: 16,
-    maxWidth: '80%',
+    maxWidth: '85%',
   },
   userMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: '#667eea',
-    borderRadius: 18,
-    borderBottomRightRadius: 4,
+    backgroundColor: Theme.colors.bubbleUser,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     padding: 12,
   },
   aiMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: 'white',
-    borderRadius: 18,
-    borderBottomLeftRadius: 4,
+    backgroundColor: Theme.colors.bubbleTutor,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 24,
   },
   userMessageText: {
-    color: 'white',
+    color: Theme.colors.textPrimary,
   },
   aiMessageText: {
-    color: '#2d3748',
+    color: Theme.colors.textPrimary,
   },
   timestamp: {
-    fontSize: 12,
-    color: '#a0aec0',
+    fontSize: 10,
+    color: Theme.colors.textMuted,
     marginTop: 4,
+  },
+  userTimestamp: {
     textAlign: 'right',
   },
   loadingText: {
     fontSize: 16,
-    color: '#718096',
+    color: Theme.colors.textSecondary,
     fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: Theme.colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: Theme.colors.border,
     alignItems: 'flex-end',
   },
   textInput: {
     flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: Theme.colors.border,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 12,
     maxHeight: 100,
     fontSize: 16,
+    color: Theme.colors.textPrimary,
   },
   sendButton: {
-    backgroundColor: '#667eea',
+    backgroundColor: Theme.colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,
   },
   sendButtonDisabled: {
-    backgroundColor: '#a0aec0',
+    backgroundColor: Theme.colors.textMuted,
   },
   sendButtonText: {
-    color: 'white',
+    color: Theme.colors.textPrimary,
     fontWeight: '600',
   },
   changeTopic: {
     flex: 1,
     padding: 12,
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: Theme.colors.card,
   },
   changeTopicText: {
-    color: '#667eea',
+    color: Theme.colors.primary,
     fontWeight: '600',
   },
   correctionContainer: {
@@ -502,66 +629,139 @@ const styles = StyleSheet.create({
     marginRight: 60,
     marginBottom: 16,
     padding: 12,
-    backgroundColor: '#fff3cd',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
+    borderLeftColor: Theme.colors.warning,
   },
   correctionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#92400e',
+    color: Theme.colors.warning,
     marginBottom: 8,
   },
   correctionOriginal: {
     fontSize: 14,
-    color: '#78350f',
+    color: Theme.colors.textSecondary,
     marginBottom: 4,
     textDecorationLine: 'line-through',
   },
   correctionFixed: {
     fontSize: 14,
-    color: '#166534',
-    fontWeight: '600',
+    color: Theme.colors.accent,
+    fontWeight: Theme.typography.weights.bold,
     marginBottom: 8,
   },
   correctionExplanation: {
     fontSize: 13,
-    color: '#78350f',
+    color: Theme.colors.textSecondary,
     fontStyle: 'italic',
   },
   tipsContainer: {
     padding: 12,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
     borderTopWidth: 1,
-    borderTopColor: '#bae6fd',
+    borderTopColor: Theme.colors.border,
   },
   tipsTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0369a1',
+    color: Theme.colors.primary,
     marginBottom: 8,
   },
   tipText: {
     fontSize: 13,
-    color: '#0c4a6e',
+    color: Theme.colors.textSecondary,
     marginBottom: 4,
     lineHeight: 18,
   },
   bottomButtons: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: Theme.colors.card,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: Theme.colors.border,
   },
   endSessionButton: {
     flex: 1,
     padding: 12,
     alignItems: 'center',
-    backgroundColor: '#48bb78',
+    backgroundColor: Theme.colors.accent,
   },
   endSessionText: {
     color: 'white',
     fontWeight: '600',
+  },
+  aiMessageContent: {
+    padding: 2,
+  },
+  tapHint: {
+    fontSize: 11,
+    color: 'rgba(248, 250, 252, 0.5)',
+    fontStyle: 'italic',
+    marginTop: 6,
+    width: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tooltip: {
+    backgroundColor: Theme.colors.background,
+    borderRadius: 16,
+    padding: 20,
+    minWidth: 200,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  tooltipArrow: {
+    display: 'none', // Arrow doesn't make sense for a centered modal
+  },
+  tooltipWord: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Theme.colors.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+    textTransform: 'capitalize',
+  },
+  tooltipTranslation: {
+    fontSize: 18,
+    color: Theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  tooltipLoading: {
+    fontSize: 14,
+    color: Theme.colors.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  tooltipUnknown: {
+    fontSize: 14,
+    color: Theme.colors.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  aiAvatarChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: 6,
+    alignSelf: 'flex-start',
+  },
+  aiAvatarText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 0.5,
   },
 });

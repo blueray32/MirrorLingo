@@ -21,24 +21,65 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      const cachedPhrases = await mirrorLingoAPI.getCachedPhrases();
-      if (cachedPhrases.length > 0) {
-        const phrasesData = cachedPhrases.map(analysis => ({
-          englishText: analysis.phrase,
-          intent: 'casual',
-          analysis: {
-            tone: analysis.idiolectProfile.overallTone,
-            formality: analysis.idiolectProfile.overallFormality,
-            patterns: analysis.idiolectProfile.commonPatterns.map((p: LanguagePattern) => ({ description: p.description })),
-            confidence: 0.85
-          }
-        }));
+
+      // Try to load from server first
+      const serverPhrases = await mirrorLingoAPI.getUserPhrases();
+
+      let finalPhrases = serverPhrases;
+      if (serverPhrases.length === 0) {
+        // Fallback to cache if server is empty or offline
+        finalPhrases = await mirrorLingoAPI.getCachedPhrases();
+      }
+
+      if (finalPhrases.length > 0) {
+        const phrasesData = finalPhrases.map(analysis => {
+          // Handle all possible property names due to model inconsistencies
+          const rawEnglish = analysis.phrase || (analysis as any).englishText || (analysis as any).content || (analysis as any).text || "";
+          const englishText = rawEnglish.trim() || "Phrase Unavailable";
+
+          // Similarly for Spanish
+          const rawSpanish =
+            analysis.translations?.natural ||
+            (analysis as any).spanishText ||
+            (analysis as any).translation ||
+            analysis.translations?.literal ||
+            "";
+          const spanishText = rawSpanish.trim() || "Translation pending...";
+
+          return {
+            englishText,
+            spanishText,
+            intent: (analysis as any).intent || 'casual',
+            analysis: {
+              tone: analysis.idiolectProfile?.overallTone || 'neutral',
+              formality: analysis.idiolectProfile?.overallFormality || 'casual',
+              patterns: (analysis.idiolectProfile?.commonPatterns || []).map((p: LanguagePattern) => ({ description: p.description })),
+              confidence: 0.85
+            }
+          };
+        });
+
         setPhrases(phrasesData);
-        setProfile(cachedPhrases[0]?.idiolectProfile || null);
+        setProfile(finalPhrases[0]?.idiolectProfile || null);
+
+        // Check for missing translations and auto-repair
+        const missingTranslations = phrasesData
+          .filter(p => p.spanishText === "Translation pending...")
+          .map(p => p.englishText);
+
+        if (missingTranslations.length > 0) {
+          console.log(`[usePhrasesApi] Auto-repairing ${missingTranslations.length} missing translations...`);
+          // Await to prevent rapid state churn and coordinated loading
+          await analyzePhrases(missingTranslations);
+        }
+
+        // Sync cache with latest server data
+        if (serverPhrases.length > 0) {
+          await mirrorLingoAPI.cachePhrases(serverPhrases);
+        }
         return true;
       }
-      
+
       return false;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load phrases');
@@ -52,26 +93,37 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const analysis = await mirrorLingoAPI.analyzePhrase(phrase);
-      
+
+      const rawEnglish = analysis.phrase || (analysis as any).englishText || phrase || "";
+      const englishText = rawEnglish.trim() || "Phrase Unavailable";
+
+      const rawSpanish =
+        analysis.translations?.natural ||
+        (analysis as any).spanishText ||
+        (analysis as any).translation ||
+        "";
+      const spanishText = rawSpanish.trim() || "Translation pending...";
+
       const phraseData = {
-        englishText: analysis.phrase,
-        intent: 'casual',
+        englishText,
+        spanishText,
+        intent: (analysis as any).intent || 'casual',
         analysis: {
-          tone: analysis.idiolectProfile.overallTone,
-          formality: analysis.idiolectProfile.overallFormality,
-          patterns: analysis.idiolectProfile.commonPatterns.map((p: LanguagePattern) => ({ description: p.description })),
+          tone: analysis.idiolectProfile?.overallTone || 'neutral',
+          formality: analysis.idiolectProfile?.overallFormality || 'casual',
+          patterns: (analysis.idiolectProfile?.commonPatterns || []).map((p: LanguagePattern) => ({ description: p.description })),
           confidence: 0.85
         }
       };
-      
+
       setPhrases(prev => [...prev, phraseData]);
       setProfile(analysis.idiolectProfile);
-      
+
       // Cache the analysis
       await mirrorLingoAPI.cachePhrases([analysis]);
-      
+
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze phrase');
@@ -85,26 +137,39 @@ export const usePhrasesApi = (): UsePhrasesApiReturn => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const analyses = await mirrorLingoAPI.analyzePhrases(phrasesInput);
-      
-      const phrasesData = analyses.map(analysis => ({
-        englishText: analysis.phrase,
-        intent: 'casual',
-        analysis: {
-          tone: analysis.idiolectProfile.overallTone,
-          formality: analysis.idiolectProfile.overallFormality,
-          patterns: analysis.idiolectProfile.commonPatterns.map((p: LanguagePattern) => ({ description: p.description })),
-          confidence: 0.85
-        }
-      }));
-      
+
+      const phrasesData = analyses.map(analysis => {
+        const rawEnglish = analysis.phrase || (analysis as any).englishText || "";
+        const englishText = rawEnglish.trim() || "Phrase Unavailable";
+
+        const rawSpanish =
+          analysis.translations?.natural ||
+          (analysis as any).spanishText ||
+          (analysis as any).translation ||
+          "";
+        const spanishText = rawSpanish.trim() || "Translation pending...";
+
+        return {
+          englishText,
+          spanishText,
+          intent: (analysis as any).intent || 'casual',
+          analysis: {
+            tone: analysis.idiolectProfile?.overallTone || 'neutral',
+            formality: analysis.idiolectProfile?.overallFormality || 'casual',
+            patterns: (analysis.idiolectProfile?.commonPatterns || []).map((p: LanguagePattern) => ({ description: p.description })),
+            confidence: 0.85
+          }
+        };
+      });
+
       setPhrases(phrasesData);
       setProfile(analyses[0]?.idiolectProfile || null);
-      
+
       // Cache the analyses
       await mirrorLingoAPI.cachePhrases(analyses);
-      
+
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze phrases');

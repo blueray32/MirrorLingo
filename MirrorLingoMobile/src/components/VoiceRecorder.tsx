@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,14 @@ import {
 } from 'react-native';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import Voice from '@react-native-voice/voice';
+import { backgroundCaptureService } from '../services/backgroundCapture';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mirrorLingoAPI } from '../services/api';
+import { Theme } from '../styles/designSystem';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+// Use dynamic base URL from API service
+const API_BASE_URL = mirrorLingoAPI.baseUrl;
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioPath: string, transcript: string) => void;
@@ -51,6 +56,24 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   const [transcriptionResult, setTranscriptionResult] = useState<TranscriptionResult | null>(null);
   const [extractedPhrases, setExtractedPhrases] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAlertTimeRef = useRef<number>(0);
+  const isRecordingRef = useRef(isRecording);
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  // Refs for callbacks to prevent effect re-runs
+  const onRecordingCompleteRef = useRef(onRecordingComplete);
+  const onAnalysisCompleteRef = useRef(onAnalysisComplete);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onRecordingCompleteRef.current = onRecordingComplete;
+    onAnalysisCompleteRef.current = onAnalysisComplete;
+    onErrorRef.current = onError;
+  }, [onRecordingComplete, onAnalysisComplete, onError]);
 
   useEffect(() => {
     Voice.onSpeechStart = () => console.log('Speech started');
@@ -60,33 +83,114 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
         setTranscript(e.value[0]);
       }
     };
-    Voice.onSpeechError = (e) => {
-      console.log('Speech error:', e.error);
-      onError(`Speech recognition error: ${e.error}`);
+    Voice.onSpeechError = (e: any) => {
+      console.log('Speech error:', e);
+      const errorObj = e.error || {};
+      const code = errorObj.code || (typeof e.error === 'string' ? e.error : '');
+      const message = errorObj.message || '';
+
+      const fullError = `${code}${message ? '/' + message : ''}`;
+
+      // Reset state so user can retry
+      const wasRecording = isRecordingRef.current;
+      setIsRecording(false);
+      setPhase('ready');
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+
+      // IMPORTANT: Only call stop if we were actually recording.
+      // Calling Voice.stop() when the service is missing (Code 5) can trigger another error event, 
+      // causing an infinite recursive "flashing" loop.
+      if (wasRecording) {
+        Voice.stop().catch(() => { });
+      }
+
+      // Throttle alerts to prevent the 'flashing' loop
+      const now = Date.now();
+      // Service errors (Code 5) are throttled more heavily (10s)
+      const throttleWindow = (code === '5' || code === 5) ? 10000 : 5000;
+      if (now - lastAlertTimeRef.current < throttleWindow) {
+        console.warn(`[VoiceRecorder] Suppressing duplicate alert (Code ${code}) within ${throttleWindow}ms window.`);
+        return;
+      }
+      lastAlertTimeRef.current = now;
+
+      // Error code mapping for Android
+      // 5: ERROR_CLIENT, 7: NO_MATCH, 11: ERROR_LANGUAGE (on some systems)
+      if (code === '5' || code === 5) {
+        onErrorRef.current('Speech recognition: Service error (Code 5). This usually means the "Google Speech Recognition" service is missing or disabled on this device. Please ensure you are using an emulator with "Google Play" support.');
+      } else if (code === '11' || code === 11) {
+        // If en-US failed, try to restart with default language once
+        console.log('[VoiceRecorder] Error 11 detected, attempting fallback to default language');
+        Voice.stop().then(() => {
+          setTimeout(() => Voice.start(''), 500); // Small delay to let engine reset
+        }).catch(err => {
+          console.error('[VoiceRecorder] Fallback failed:', err);
+          onErrorRef.current('Speech recognition: This device does not appear to support the "en-US" engine. Please check your system settings.');
+        });
+      } else if (code === '7' || code === 7) {
+        onErrorRef.current('Speech recognition: No speech detected. Please speak louder and closer to the mic.');
+      } else {
+        onErrorRef.current(`Speech recognition error: ${fullError}`);
+      }
     };
+
+    // Check if speech services are available
+    const checkAvailability = async () => {
+      // Pause background capture while we are in manual recording mode
+      if (Platform.OS === 'android') {
+        backgroundCaptureService.pause();
+      }
+
+      try {
+        const isAvailable = await Voice.isAvailable();
+        console.log('[VoiceRecorder] Is speech available:', isAvailable);
+        if (!isAvailable) {
+          console.warn('[VoiceRecorder] Speech recognition services not detected on this device.');
+        }
+
+        if (Platform.OS === 'android') {
+          const services = await Voice.getSpeechRecognitionServices();
+          console.log('[VoiceRecorder] Available services:', services);
+          if (!services || services.length === 0) {
+            console.warn('[VoiceRecorder] No speech recognition services found on Android.');
+          }
+        }
+      } catch (e) {
+        console.error('[VoiceRecorder] Failed to check voice availability:', e);
+      }
+    };
+    checkAvailability();
 
     return () => {
       Voice.destroy().then(Voice.removeAllListeners);
+      // Resume background capture when leaving this screen
+      if (Platform.OS === 'android') {
+        backgroundCaptureService.resume();
+      }
     };
-  }, [onError]);
+  }, []);
 
   const requestPermissions = async () => {
     if (Platform.OS === 'android') {
       try {
-        const grants = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        const recordAuth = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-        ]);
+          {
+            title: 'Microphone Permission',
+            message: 'MirrorLingo needs access to your microphone to analyze your speech.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
 
-        if (
-          grants['android.permission.WRITE_EXTERNAL_STORAGE'] === PermissionsAndroid.RESULTS.GRANTED &&
-          grants['android.permission.READ_EXTERNAL_STORAGE'] === PermissionsAndroid.RESULTS.GRANTED &&
-          grants['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED
-        ) {
+        if (recordAuth === PermissionsAndroid.RESULTS.GRANTED) {
           return true;
         } else {
-          Alert.alert('Permissions denied');
+          Alert.alert('Permissions denied', 'Microphone access is required to record voice.');
           return false;
         }
       } catch (err) {
@@ -103,34 +207,62 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
     try {
       setIsRecording(true);
-
-      // Start audio recording
       setPhase('recording');
-      const audioPath = await audioRecorderPlayer.startRecorder();
-      audioRecorderPlayer.addRecordBackListener((e) => {
-        // Format as mm:ss instead of mm:ss:sss for cleaner display
-        const totalSeconds = Math.floor(e.currentPosition / 1000);
-        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-        setRecordTime(`${minutes}:${seconds}`);
-        setRecordDuration(totalSeconds);
-      });
+
+      // On Android, concurrent mic usage can cause conflicts.
+      // We prioritize speech recognition for the live transcript.
+      let audioPath = '';
+      if (Platform.OS === 'ios') {
+        audioPath = await audioRecorderPlayer.startRecorder();
+        audioRecorderPlayer.addRecordBackListener((e) => {
+          const totalSeconds = Math.floor(e.currentPosition / 1000);
+          const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+          const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+          setRecordTime(`${minutes}:${seconds}`);
+          setRecordDuration(totalSeconds);
+        });
+      } else {
+        // Simple timer for Android since we aren't using startRecorder
+        let seconds = 0;
+        const interval = setInterval(() => {
+          seconds++;
+          const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+          const secs = (seconds % 60).toString().padStart(2, '0');
+          setRecordTime(`${mins}:${secs}`);
+          setRecordDuration(seconds);
+        }, 1000);
+        recordingIntervalRef.current = interval;
+      }
 
       // Start speech recognition
-      await Voice.start('en-US');
+      try {
+        await Voice.start('en-US');
+      } catch (e) {
+        console.warn('Failed to start with en-US, trying default...', e);
+        await Voice.start(''); // Fallback to system default
+      }
 
-      console.log('Recording started:', audioPath);
+      console.log('Recording started', Platform.OS === 'ios' ? `at: ${audioPath}` : '(Speech Recognition only)');
     } catch (error) {
       console.error('Failed to start recording:', error);
-      onError('Failed to start recording');
+      onErrorRef.current('Failed to start recording');
       setIsRecording(false);
     }
   };
 
   const stopRecording = async () => {
     try {
-      const result = await audioRecorderPlayer.stopRecorder();
-      audioRecorderPlayer.removeRecordBackListener();
+      let result = '';
+      if (Platform.OS === 'ios') {
+        result = await audioRecorderPlayer.stopRecorder();
+        audioRecorderPlayer.removeRecordBackListener();
+      } else {
+        if (recordingIntervalRef.current) {
+          clearInterval(recordingIntervalRef.current);
+          recordingIntervalRef.current = null;
+        }
+      }
+
       await Voice.stop();
 
       setIsRecording(false);
@@ -139,10 +271,10 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       // Process the recording
       await processRecording(result, transcript);
 
-      onRecordingComplete(result, transcript);
+      onRecordingCompleteRef.current(result, transcript);
     } catch (error) {
       console.error('Failed to stop recording:', error);
-      onError('Failed to stop recording');
+      onErrorRef.current('Failed to stop recording');
       setIsRecording(false);
       setPhase('ready');
     }
@@ -175,8 +307,8 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
       setTranscriptionResult(result);
 
-      // Extract phrases from transcript
-      const phrases = extractPhrasesFromTranscript(transcriptText);
+      // Extract phrases from transcript using intelligent segmentation
+      const phrases = await mirrorLingoAPI.segmentTranscript(transcriptText);
       setExtractedPhrases(phrases);
 
       setPhase('results');
@@ -206,7 +338,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
     setIsAnalyzing(true);
     try {
-      const userId = await AsyncStorage.getItem('user_id') || 'anonymous';
+      const userId = await mirrorLingoAPI.getUserId();
 
       const response = await fetch(`${API_BASE_URL}/phrases`, {
         method: 'POST',
@@ -219,11 +351,12 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.data && onAnalysisComplete) {
-          onAnalysisComplete(data.data);
+        if (data.success && data.data && onAnalysisCompleteRef.current) {
+          onAnalysisCompleteRef.current(data.data);
         }
       } else {
-        Alert.alert('Analysis Error', 'Failed to analyze phrases. Please try again.');
+        const errorData = await response.json().catch(() => ({}));
+        Alert.alert('Analysis Error', `Failed to analyze phrases: ${errorData.message || response.statusText || 'Internal Server Error'}`);
       }
     } catch (error) {
       console.error('Analysis error:', error);
@@ -258,7 +391,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   // Results phase
   if (phase === 'results' && transcriptionResult) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.resultsContent}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.resultsContent}>
         <View style={styles.successBanner}>
           <Text style={styles.successEmoji}>✅</Text>
           <Text style={styles.successTitle}>Recording Processed Successfully!</Text>
@@ -359,34 +492,30 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           {transcript || 'Your speech will appear here as you speak...'}
         </Text>
       </View>
-
-      <View style={styles.tipsContainer}>
-        <Text style={styles.tipsTitle}>💡 Recording Tips</Text>
-        <Text style={styles.tipText}>• Speak naturally as you would in daily conversation</Text>
-        <Text style={styles.tipText}>• Include phrases you actually use at work, home, or with friends</Text>
-        <Text style={styles.tipText}>• Don't worry about perfect grammar - be authentic!</Text>
-        <Text style={styles.tipText}>• Record for 30-60 seconds for best analysis</Text>
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    padding: Theme.spacing.lg,
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: Theme.colors.background,
+    flex: 1,
+  },
+  scrollContainer: {
+    backgroundColor: Theme.colors.background,
     flex: 1,
   },
   title: {
-    fontSize: 28,
+    fontSize: Theme.typography.sizes.xl,
     fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#1a202c',
+    marginBottom: Theme.spacing.md,
+    color: Theme.colors.textPrimary,
   },
   recordingContainer: {
     alignItems: 'center',
-    marginVertical: 40,
+    marginVertical: Theme.spacing.xl,
   },
   recordButton: {
     width: 140,
@@ -394,221 +523,194 @@ const styles = StyleSheet.create({
     borderRadius: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Theme.spacing.lg,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
   },
   recordingActive: {
-    backgroundColor: '#e53e3e',
+    backgroundColor: Theme.colors.error,
   },
   recordingInactive: {
-    backgroundColor: '#667eea',
+    backgroundColor: Theme.colors.primary,
   },
   recordButtonText: {
-    color: 'white',
+    color: Theme.colors.textPrimary,
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   recordTime: {
-    fontSize: 24,
-    color: '#4a5568',
-    fontFamily: 'monospace',
+    fontSize: 32,
+    color: Theme.colors.textPrimary,
+    fontVariant: ['tabular-nums'],
     fontWeight: 'bold',
   },
   instructions: {
-    fontSize: 18,
-    color: '#718096',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
     textAlign: 'center',
-    marginTop: 30,
-    paddingHorizontal: 20,
+    marginTop: Theme.spacing.xl,
+    paddingHorizontal: Theme.spacing.lg,
     lineHeight: 26,
   },
   transcriptContainer: {
-    marginTop: 30,
-    padding: 20,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    minHeight: 80,
+    marginTop: Theme.spacing.xl,
+    padding: Theme.spacing.md,
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.md,
+    minHeight: 100,
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   transcriptTitle: {
-    fontSize: 16,
+    fontSize: Theme.typography.sizes.xs,
     fontWeight: 'bold',
-    color: '#4a5568',
-    marginBottom: 10,
+    color: Theme.colors.textMuted,
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
   transcriptText: {
-    fontSize: 16,
-    color: '#2d3748',
-    lineHeight: 22,
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textPrimary,
+    lineHeight: 24,
     fontStyle: 'italic',
   },
   placeholderText: {
-    fontSize: 16,
-    color: '#a0aec0',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textMuted,
     fontStyle: 'italic',
   },
-  // Processing phase styles
   processingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: Theme.spacing.xl,
+    backgroundColor: Theme.colors.background,
   },
   processingTitle: {
-    fontSize: 20,
+    fontSize: Theme.typography.sizes.lg,
     fontWeight: 'bold',
-    color: '#2d3748',
-    marginTop: 20,
+    color: Theme.colors.textPrimary,
+    marginTop: Theme.spacing.lg,
     textAlign: 'center',
   },
   processingSubtitle: {
-    fontSize: 16,
-    color: '#718096',
-    marginTop: 10,
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
+    marginTop: Theme.spacing.sm,
     textAlign: 'center',
   },
-  // Results phase styles
   resultsContent: {
-    paddingBottom: 40,
+    paddingBottom: Theme.spacing.xl,
+    padding: Theme.spacing.md,
   },
   successBanner: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: Theme.spacing.xl,
   },
   successEmoji: {
     fontSize: 48,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: Theme.typography.sizes.lg,
     fontWeight: 'bold',
-    color: '#38a169',
+    color: Theme.colors.accent,
     textAlign: 'center',
   },
   transcriptCard: {
-    backgroundColor: '#f0fff4',
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
     borderLeftWidth: 4,
-    borderLeftColor: '#38a169',
-    marginBottom: 20,
+    borderLeftColor: Theme.colors.accent,
+    marginBottom: Theme.spacing.lg,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: Theme.typography.sizes.sm,
     fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 12,
+    color: Theme.colors.textPrimary,
+    marginBottom: Theme.spacing.sm,
   },
   transcriptResultText: {
-    fontSize: 16,
-    color: '#4a5568',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textPrimary,
     fontStyle: 'italic',
     lineHeight: 24,
   },
   metricsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 10,
+    marginBottom: Theme.spacing.lg,
+    gap: 8,
   },
   metricCard: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Theme.colors.card,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   metricLabel: {
-    fontSize: 12,
-    color: '#718096',
-    marginBottom: 6,
+    fontSize: 10,
+    color: Theme.colors.textSecondary,
+    marginBottom: 4,
+    textTransform: 'uppercase',
   },
   metricValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#2d3748',
+    color: Theme.colors.textPrimary,
   },
   phrasesCard: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: Theme.colors.card,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.lg,
+    marginBottom: Theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   phraseItem: {
-    padding: 12,
-    backgroundColor: '#f8fafc',
+    padding: Theme.spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     marginBottom: 8,
-    borderRadius: 8,
+    borderRadius: Theme.radius.sm,
     borderLeftWidth: 3,
-    borderLeftColor: '#667eea',
+    borderLeftColor: Theme.colors.primary,
   },
   phraseText: {
-    fontSize: 14,
-    color: '#4a5568',
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textPrimary,
     fontStyle: 'italic',
   },
   analyzeButton: {
-    backgroundColor: '#667eea',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Theme.colors.primary,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: Theme.spacing.md,
   },
   analyzeButtonDisabled: {
-    backgroundColor: '#a0aec0',
+    opacity: 0.5,
   },
   analyzeButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: Theme.colors.textPrimary,
+    fontSize: Theme.typography.sizes.md,
     fontWeight: '600',
   },
   recordAgainButton: {
-    padding: 16,
+    padding: Theme.spacing.md,
     alignItems: 'center',
   },
   recordAgainText: {
-    color: '#667eea',
-    fontSize: 16,
+    color: Theme.colors.primary,
+    fontSize: Theme.typography.sizes.md,
     fontWeight: '500',
-  },
-  // Tips styles
-  tipsContainer: {
-    marginTop: 24,
-    padding: 20,
-    backgroundColor: '#e0f2fe',
-    borderRadius: 12,
-  },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0369a1',
-    marginBottom: 12,
-  },
-  tipText: {
-    fontSize: 14,
-    color: '#0c4a6e',
-    lineHeight: 22,
-    marginBottom: 4,
   },
 });

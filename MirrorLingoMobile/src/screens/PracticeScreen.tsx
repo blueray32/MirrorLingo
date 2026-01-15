@@ -15,6 +15,8 @@ import { mirrorLingoAPI, PhraseAnalysis } from '../services/api';
 import { SpacedRepetitionScheduler, ReviewItem, PerformanceRating } from '../utils/spacedRepetition';
 import { useSpacedRepetitionSync } from '../hooks/useSpacedRepetitionSync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Theme } from '../styles/designSystem';
+import { ActivityIndicator, StatusBar } from 'react-native';
 
 type PracticeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Practice'>;
 type PracticeScreenRouteProp = RouteProp<RootStackParamList, 'Practice'>;
@@ -62,9 +64,17 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
       setLoading(true);
 
       let loadedPhrases: PhraseAnalysis[];
-      if (route.params?.phrases) {
-        // Analyze new phrases from recording
-        loadedPhrases = await mirrorLingoAPI.analyzePhrases(route.params.phrases);
+      if (route.params?.phrases && route.params.phrases.length > 0) {
+        // Check if we received strings or objects
+        if (typeof route.params.phrases[0] === 'string') {
+          // Analyze new phrases from recording
+          loadedPhrases = await mirrorLingoAPI.analyzePhrases(route.params.phrases as string[]);
+          // Persist newly analyzed phrases if they came from a raw recording
+          await mirrorLingoAPI.cachePhrases(loadedPhrases);
+        } else {
+          // We received pre-analyzed objects from TutorScreen
+          loadedPhrases = route.params.phrases as any[];
+        }
       } else {
         // Load existing user phrases
         loadedPhrases = await mirrorLingoAPI.getUserPhrases();
@@ -73,12 +83,19 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
 
       // Convert to review items and load saved progress
       const savedProgress = await loadSavedProgress();
-      const items: ReviewItem[] = loadedPhrases.map((phrase, idx) => {
-        const saved = savedProgress[phrase.phrase];
+      const items: ReviewItem[] = loadedPhrases.map((phrase: any, idx) => {
+        const content = phrase.englishText || phrase.phrase || 'Phrase Unavailable';
+        const translation =
+          phrase.spanishText ||
+          phrase.translations?.natural ||
+          phrase.translation ||
+          'Translation pending...';
+
+        const saved = savedProgress[content];
         return {
           id: `phrase-${idx}`,
-          content: phrase.phrase,
-          translation: phrase.translations?.natural || 'Translation unavailable',
+          content: content,
+          translation: translation,
           easeFactor: saved?.easeFactor || 2.5,
           interval: saved?.interval || 1,
           repetitions: saved?.repetitions || 0,
@@ -135,7 +152,7 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
     await saveProgress(updatedItem);
 
     // Update review items with the processed item
-    const updatedReviewItems = reviewItems.map(item => 
+    const updatedReviewItems = reviewItems.map(item =>
       item.id === currentItem.id ? updatedItem : item
     );
 
@@ -173,12 +190,14 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
         `Accuracy: ${Math.round((newStats.correct / newStats.reviewed) * 100)}%\n` +
         `Time: ${Math.floor(timeSpent / 60)}m ${timeSpent % 60}s`,
         [
-          { text: 'Practice Again', onPress: () => {
-            setCurrentIndex(0);
-            setShowTranslation(false);
-            setSessionStats({ reviewed: 0, correct: 0, ratings: [] });
-          }},
-          { text: 'Go Home', onPress: () => navigation.navigate('Home') },
+          {
+            text: 'Practice Again', onPress: () => {
+              setCurrentIndex(0);
+              setShowTranslation(false);
+              setSessionStats({ reviewed: 0, correct: 0, ratings: [] });
+            }
+          },
+          { text: 'Go Home', onPress: () => navigation.navigate('MainTabs') },
         ]
       );
     }
@@ -194,7 +213,9 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" />
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
           <Text style={styles.loadingText}>Analyzing your phrases...</Text>
         </View>
       </SafeAreaView>
@@ -221,6 +242,7 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <ScrollView contentContainerStyle={styles.content}>
         {/* Session Header */}
         <View style={styles.sessionHeader}>
@@ -262,20 +284,21 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
                 </Text>
               </View>
 
-              {currentPhrase?.translations?.literal && (
+              {/* Fallback translations / explanations if available */}
+              {(currentPhrase as any)?.translations?.literal && (
                 <View style={styles.translationSection}>
                   <Text style={styles.translationLabel}>Literal Translation:</Text>
                   <Text style={styles.literalTranslation}>
-                    "{currentPhrase.translations.literal}"
+                    "{(currentPhrase as any).translations.literal}"
                   </Text>
                 </View>
               )}
 
-              {currentPhrase?.translations?.explanation && (
+              {(currentPhrase as any)?.translations?.explanation && (
                 <View style={styles.explanationSection}>
                   <Text style={styles.explanationLabel}>Why this translation?</Text>
                   <Text style={styles.explanation}>
-                    {currentPhrase.translations.explanation}
+                    {(currentPhrase as any).translations.explanation}
                   </Text>
                 </View>
               )}
@@ -338,10 +361,10 @@ export const PracticeScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: Theme.colors.background,
   },
   content: {
-    padding: 20,
+    padding: Theme.spacing.md,
   },
   loadingContainer: {
     flex: 1,
@@ -349,242 +372,221 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 18,
-    color: '#666',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
+    marginTop: Theme.spacing.md,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Theme.spacing.xl,
   },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: Theme.typography.sizes.xl,
     fontWeight: 'bold',
-    color: '#48bb78',
-    marginBottom: 10,
+    color: Theme.colors.accent,
+    marginBottom: Theme.spacing.sm,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#718096',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: Theme.spacing.xs,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#a0aec0',
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textMuted,
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: Theme.spacing.xl,
   },
   recordButton: {
-    backgroundColor: '#667eea',
-    padding: 15,
-    borderRadius: 12,
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
   },
   recordButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: Theme.colors.textPrimary,
+    fontSize: Theme.typography.sizes.md,
     fontWeight: '600',
   },
   sessionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    marginBottom: Theme.spacing.md,
+    padding: Theme.spacing.md,
+    backgroundColor: Theme.colors.card,
+    borderRadius: Theme.radius.md,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   progressContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   progressText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#667eea',
+    fontSize: Theme.typography.sizes.sm,
+    fontWeight: 'bold',
+    color: Theme.colors.primary,
   },
   statsContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   statsText: {
-    fontSize: 14,
-    color: '#718096',
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textSecondary,
+    fontWeight: '600',
   },
   phraseCard: {
-    backgroundColor: 'white',
-    padding: 24,
-    borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: Theme.colors.card,
+    padding: Theme.spacing.lg,
+    borderRadius: Theme.radius.lg,
+    marginBottom: Theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
   },
   englishPhrase: {
-    fontSize: 22,
-    color: '#2d3748',
+    fontSize: Theme.typography.sizes.xl,
+    color: Theme.colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 24,
-    fontWeight: '600',
-    lineHeight: 30,
+    marginBottom: Theme.spacing.xl,
+    fontWeight: 'bold',
+    lineHeight: 32,
   },
   revealSection: {
     alignItems: 'center',
   },
   revealHint: {
-    fontSize: 14,
-    color: '#718096',
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textMuted,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: Theme.spacing.lg,
   },
   revealButton: {
-    backgroundColor: '#667eea',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
+    backgroundColor: Theme.colors.primary,
+    paddingVertical: Theme.spacing.md,
+    paddingHorizontal: Theme.spacing.xl,
+    borderRadius: Theme.radius.md,
+    width: '100%',
     alignItems: 'center',
   },
   revealButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+    color: Theme.colors.textPrimary,
+    fontSize: Theme.typography.sizes.md,
+    fontWeight: 'bold',
   },
   translationContainer: {
-    marginTop: 10,
+    marginTop: Theme.spacing.sm,
   },
   spanishAnswer: {
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: '#e6fffa',
-    borderRadius: 12,
+    marginBottom: Theme.spacing.lg,
+    padding: Theme.spacing.lg,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: Theme.radius.md,
     borderLeftWidth: 4,
-    borderLeftColor: '#38b2ac',
+    borderLeftColor: Theme.colors.accent,
   },
   spanishAnswerText: {
-    fontSize: 20,
-    color: '#234e52',
-    fontWeight: '600',
+    fontSize: Theme.typography.sizes.xl,
+    color: Theme.colors.accent,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
   translationSection: {
-    marginBottom: 15,
+    marginBottom: Theme.spacing.md,
   },
   translationLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-    fontWeight: '600',
-  },
-  naturalTranslation: {
-    fontSize: 18,
-    color: '#4CAF50',
+    fontSize: Theme.typography.sizes.xs,
+    color: Theme.colors.textMuted,
+    marginBottom: Theme.spacing.xs,
     fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   literalTranslation: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: Theme.typography.sizes.md,
+    color: Theme.colors.textSecondary,
+    fontStyle: 'italic',
   },
   explanationSection: {
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
+    marginTop: Theme.spacing.md,
+    padding: Theme.spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: Theme.radius.sm,
   },
   explanationLabel: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
-    marginBottom: 5,
+    fontSize: Theme.typography.sizes.xs,
+    color: Theme.colors.textSecondary,
+    fontWeight: 'bold',
+    marginBottom: Theme.spacing.xs,
   },
   explanation: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textMuted,
     lineHeight: 20,
   },
   ratingSection: {
-    marginTop: 24,
-    paddingTop: 20,
+    marginTop: Theme.spacing.xl,
+    paddingTop: Theme.spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: Theme.colors.border,
   },
   ratingTitle: {
-    fontSize: 16,
-    color: '#4a5568',
+    fontSize: Theme.typography.sizes.sm,
+    color: Theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 16,
-    fontWeight: '500',
+    marginBottom: Theme.spacing.md,
+    fontWeight: '600',
   },
   ratingGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: Theme.spacing.sm,
   },
   ratingButton: {
     width: '48%',
-    padding: 16,
-    borderRadius: 12,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.radius.md,
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   ratingAgain: {
-    backgroundColor: '#fed7d7',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   ratingHard: {
-    backgroundColor: '#feebc8',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
   },
   ratingGood: {
-    backgroundColor: '#c6f6d5',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
   },
   ratingEasy: {
-    backgroundColor: '#bee3f8',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
   ratingEmoji: {
-    fontSize: 28,
+    fontSize: 24,
     marginBottom: 4,
   },
   ratingLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2d3748',
+    fontSize: Theme.typography.sizes.xs,
+    fontWeight: 'bold',
+    color: Theme.colors.textPrimary,
   },
   skipButton: {
-    padding: 12,
+    padding: Theme.spacing.md,
     alignItems: 'center',
   },
   skipButtonText: {
-    color: '#718096',
-    fontSize: 14,
-    fontWeight: '500',
+    color: Theme.colors.textMuted,
+    fontSize: Theme.typography.sizes.sm,
+    fontWeight: '600',
   },
   syncStatus: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  navigationContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  navButton: {
-    backgroundColor: '#4CAF50',
-    padding: 15,
-    borderRadius: 8,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  navButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  navButtonText: {
-    color: 'white',
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: 'bold',
+    marginTop: 2,
+    textTransform: 'uppercase',
   },
 });
